@@ -269,7 +269,7 @@ export const LandingPortal: React.FC<LandingPortalProps> = ({ onLoginSuccess }) 
       </header>
 
       {/* Main Content Portal */}
-      <main className="relative z-10 flex-1 max-w-5xl w-full mx-auto px-3 sm:px-6 py-2 sm:py-4 flex flex-col items-center justify-center overflow-y-auto">
+      <main className="relative z-10 flex-1 max-w-5xl w-full mx-auto px-3 sm:px-6 py-2 sm:py-4 flex flex-col items-center justify-center overflow-hidden">
         
         {/* Hero Section */}
         <div className="text-center max-w-2xl mb-2 sm:mb-3 px-2 shrink-0">
