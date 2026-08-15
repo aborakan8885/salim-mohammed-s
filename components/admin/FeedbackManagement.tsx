@@ -14,24 +14,31 @@ const FeedbackManagement: React.FC = () => {
     const [feedbackToDelete, setFeedbackToDelete] = useState<Feedback | null>(null);
 
     useEffect(() => {
+        let unsubscribe: () => void = () => {};
+
         if (!db) {
             setLoading(false);
             return;
         }
 
-        const q = query(collection(db, 'feedbacks'), orderBy('createdAt', 'desc'));
-        
-        const unsubscribe = onSnapshot(q, (snapshot) => {
-            const feedbackData: Feedback[] = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            } as Feedback));
-            setFeedbacks(feedbackData);
+        try {
+            const q = query(collection(db, 'feedbacks'), orderBy('createdAt', 'desc'));
+            
+            unsubscribe = onSnapshot(q, (snapshot) => {
+                const feedbackData: Feedback[] = snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                } as Feedback));
+                setFeedbacks(feedbackData);
+                setLoading(false);
+            }, (error) => {
+                console.error("Firestore subscription error:", error);
+                setLoading(false);
+            });
+        } catch (err) {
+            console.error("Failed to setup feedback listener:", err);
             setLoading(false);
-        }, (error) => {
-            console.error("Error fetching feedbacks:", error);
-            setLoading(false);
-        });
+        }
 
         return () => unsubscribe();
     }, []);

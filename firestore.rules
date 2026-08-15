@@ -1,13 +1,20 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow public creation of feedback
+    // Feedback Collection Security
     match /feedbacks/{feedbackId} {
-      allow create: if true;
-      allow read, delete: if request.auth != null; // Simple check for now, can be refined
+      // Anyone can submit feedback, but with validation
+      allow create: if request.resource.data.keys().hasAll(['name', 'message', 'createdAt'])
+                   && request.resource.data.name is string
+                   && request.resource.data.message is string
+                   && request.resource.data.message.size() < 10000;
+      
+      // Only authenticated users can read or manage feedback
+      // In a production app, we would check for an 'admin' role in custom claims
+      allow read, delete: if request.auth != null;
     }
     
-    // Default deny
+    // Default Security: Deny all by default unless authenticated
     match /{document=**} {
       allow read, write: if request.auth != null;
     }

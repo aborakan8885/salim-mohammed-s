@@ -3,6 +3,7 @@ import { X, MessageSquare, Phone, MessageCircle, Send, User, Smartphone, Code2, 
 import { Button } from '../ui/Button';
 import { db } from '../../lib/firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { sanitizeString } from '../../lib/security';
 
 interface DeveloperContactModalProps {
   isOpen: boolean;
@@ -32,10 +33,19 @@ export const DeveloperContactModal: React.FC<DeveloperContactModalProps> = ({ is
     try {
       if (!db) throw new Error('Database not initialized');
 
+      // Defensive coding: Sanitize inputs before database submission
+      const sanitizedName = sanitizeString(name) || 'مستفيد غير معروف';
+      const sanitizedPhone = sanitizeString(phone);
+      const sanitizedMessage = sanitizeString(message);
+
+      if (!sanitizedMessage) {
+        throw new Error('Message is empty after sanitization');
+      }
+
       await addDoc(collection(db, 'feedbacks'), {
-        name: name.trim() || 'مستفيد غير معروف',
-        phone: phone.trim() || '',
-        message: message.trim(),
+        name: sanitizedName,
+        phone: sanitizedPhone,
+        message: sanitizedMessage,
         createdAt: serverTimestamp(),
       });
       
