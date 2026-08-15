@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { X, MessageSquare, Phone, MessageCircle, Send, User, Smartphone, Code2, Sparkles, AlertCircle } from 'lucide-react';
+import { X, MessageSquare, Phone, MessageCircle, Send, User, Smartphone, Code2, Sparkles, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Button } from '../ui/Button';
+import { db } from '../../lib/firebase';
+import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 interface DeveloperContactModalProps {
   isOpen: boolean;
@@ -11,15 +13,30 @@ export const DeveloperContactModal: React.FC<DeveloperContactModalProps> = ({ is
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [message, setMessage] = useState('');
-  const [status, setStatus] = useState<'idle' | 'sending' | 'success'>('idle');
+  const [status, setStatus] = useState<'idle' | 'sending' | 'success' | 'error'>('idle');
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!message.trim()) return;
+
+    if (!db) {
+      console.error('Firestore is not initialized. Please check your configuration.');
+      setStatus('error');
+      return;
+    }
+
     setStatus('sending');
-    // Simulated send
-    setTimeout(() => {
+    
+    try {
+      await addDoc(collection(db, 'feedbacks'), {
+        name: name.trim() || 'مستفيد غير معروف',
+        phone: phone.trim() || '',
+        message: message.trim(),
+        createdAt: serverTimestamp(),
+      });
+      
       setStatus('success');
       setTimeout(() => {
         onClose();
@@ -28,7 +45,11 @@ export const DeveloperContactModal: React.FC<DeveloperContactModalProps> = ({ is
         setPhone('');
         setMessage('');
       }, 2000);
-    }, 1000);
+    } catch (error) {
+      console.error('Error sending feedback:', error);
+      setStatus('error');
+      setTimeout(() => setStatus('idle'), 3000);
+    }
   };
 
   const handleWhatsApp = () => {
@@ -138,7 +159,7 @@ export const DeveloperContactModal: React.FC<DeveloperContactModalProps> = ({ is
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="أدخل اسمك الكريم..."
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 outline-none transition-all pr-10"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 outline-none transition-all pr-10"
                     />
                     <User className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                   </div>
@@ -154,7 +175,7 @@ export const DeveloperContactModal: React.FC<DeveloperContactModalProps> = ({ is
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       placeholder="05xxxxxxxx"
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 outline-none transition-all pr-10 font-mono"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 outline-none transition-all pr-10 font-mono"
                       dir="ltr"
                     />
                     <Smartphone className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
@@ -170,7 +191,7 @@ export const DeveloperContactModal: React.FC<DeveloperContactModalProps> = ({ is
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   placeholder="اكتب جميع ملاحظاتك، مقترحاتك، أو الاستفسار هنا بالتفصيل ليتم إرسالها للمبرمج..."
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 outline-none transition-all min-h-[120px] resize-none"
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-900 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 outline-none transition-all min-h-[120px] resize-none"
                   required
                 />
               </div>
@@ -216,22 +237,3 @@ export const DeveloperContactModal: React.FC<DeveloperContactModalProps> = ({ is
     </div>
   );
 };
-
-// Internal CheckCircle2 since I missed it in imports
-const CheckCircle2 = ({ className }: { className?: string }) => (
-  <svg 
-    xmlns="http://www.w3.org/2000/svg" 
-    width="24" 
-    height="24" 
-    viewBox="0 0 24 24" 
-    fill="none" 
-    stroke="currentColor" 
-    strokeWidth="2" 
-    strokeLinecap="round" 
-    strokeLinejoin="round" 
-    className={className}
-  >
-    <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
-    <path d="m9 12 2 2 4-4"/>
-  </svg>
-);

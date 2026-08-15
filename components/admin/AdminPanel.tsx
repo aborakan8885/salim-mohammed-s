@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
-import { X, UploadCloud, List, Users } from 'lucide-react';
+import { X, UploadCloud, List, Users, MessageSquare } from 'lucide-react';
 import { Card } from '../ui/Card';
 import FileUpload from './FileUpload';
 import FileManagement from './FileManagement';
 import UserManagement from './UserManagement';
+import FeedbackManagement from './FeedbackManagement';
 
 interface AdminPanelProps {
   onClose: () => void;
 }
 
-type AdminTab = 'upload' | 'manage' | 'users';
+type AdminTab = 'upload' | 'manage' | 'users' | 'feedback';
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
     const [activeTab, setActiveTab] = useState<AdminTab>('upload');
@@ -22,6 +23,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
                 return <FileManagement />;
             case 'users':
                 return <UserManagement />;
+            case 'feedback':
+                return <FeedbackManagement />;
             default:
                 return null;
         }
@@ -57,6 +60,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
                             text="إدارة المستخدمين"
                             isActive={activeTab === 'users'}
                             onClick={() => setActiveTab('users')}
+                        />
+                        <TabButton
+                            icon={MessageSquare}
+                            text="الملاحظات"
+                            isActive={activeTab === 'feedback'}
+                            onClick={() => setActiveTab('feedback')}
                         />
                     </nav>
                     <div className="flex-1 p-6 overflow-y-auto bg-gray-50 custom-scrollbar">

@@ -9,9 +9,14 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "react-dom": "^19.2.0",
+    "clsx": "^2.1.1",
+    "firebase": "^12.17.1",
+    "lucide-react": "^0.546.0",
+    "motion": "^13.1.0",
     "react": "^19.2.0",
-    "lucide-react": "^0.546.0"
+    "react-dom": "^19.2.0",
+    "tailwind-merge": "^3.6.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

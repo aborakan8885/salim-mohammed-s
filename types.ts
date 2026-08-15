@@ -119,3 +119,13 @@ export type User = {
   };
   createdAt?: string;
 };
+
+export type Feedback = {
+  id?: string;
+  userId?: string;
+  userName?: string;
+  name: string;
+  phone?: string;
+  message: string;
+  createdAt: any; // Firestore Timestamp
+};
