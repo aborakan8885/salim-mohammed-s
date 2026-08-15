@@ -863,9 +863,13 @@ export const getSchoolGovernorate = (p: EducationalPlace, m: Record<string, File
             }
         }
     }
-    // Fallback: search keys
-    for (const key of Object.keys(p.rawData)) {
-        if (key.includes('محافظة') || key.includes('المحافظة') || key.includes('المحافظه') || key.includes('محافظه')) {
+    // Fallback: deep search in rawData keys with normalization
+    const keys = Object.keys(p.rawData);
+    for (const key of keys) {
+        const normKey = normalizeArabic(key);
+        if (normKey.includes(normalizeArabic('المحافظة')) || 
+            normKey.includes(normalizeArabic('محافظة')) || 
+            key.toLowerCase().includes('governorate')) {
             const val = p.rawData[key];
             if (val !== null && val !== undefined && String(val).trim() !== '') {
                 return String(val).trim();
@@ -948,14 +952,25 @@ export const isExcludedSchoolType = (place: EducationalPlace): boolean => {
     return false;
 };
 
+const normalizationCache = new Map<string, string>();
+
 export const normalizeArabic = (str: string): string => {
-    return str
+    if (!str) return '';
+    const cached = normalizationCache.get(str);
+    if (cached) return cached;
+
+    const result = str
         .replace(/[أإآ]/g, 'ا')
         .replace(/ة/g, 'ه')
         .replace(/ى/g, 'ي')
-        .replace(/\s+/g, '') // remove all whitespaces for exact structural matching
+        .replace(/\s+/g, ' ')
         .trim()
         .toLowerCase();
+    
+    // Limit cache size to avoid memory leaks
+    if (normalizationCache.size > 2000) normalizationCache.clear();
+    normalizationCache.set(str, result);
+    return result;
 };
 
 // --- FILTERING LOGIC (Shared) ---
@@ -1535,16 +1550,9 @@ function AppContent() {
       const distance = getDistanceMeters(surroundingBaseSchool.lat, surroundingBaseSchool.lng, p.lat, p.lng);
       if (distance > surroundingRadius) return false;
       
-      if (surroundingRegion !== 'all') {
-        const r = getSchoolRegion(p, fileMappings);
-        if (r && r !== surroundingRegion) return false;
-      }
-
-      if (surroundingGovernorate !== 'all') {
-        const g = getSchoolGovernorate(p, fileMappings);
-        if (g && g !== surroundingGovernorate) return false;
-      }
-
+      // Removed strict governorate/region filtering for neighbors to allow seeing close schools across borders
+      // but keeping gender and level filters as they are usually more relevant for educational planning
+      
       if (surroundingGender !== 'all') {
         const g = getSchoolGender(p, fileMappings);
         if (!g) return false;
@@ -1581,7 +1589,7 @@ function AppContent() {
       
       return true;
     });
-  }, [isSurroundingActive, surroundingBaseSchool, surroundingRadius, surroundingGender, surroundingLevel, surroundingRegion, surroundingGovernorate, allPlaces, fileMappings]);
+  }, [isSurroundingActive, surroundingBaseSchool, surroundingRadius, surroundingGender, surroundingLevel, allPlaces, fileMappings]);
 
   const baseGroup = useMemo(() => {
     if (!surroundingBaseSchool) return 'school';
@@ -1628,11 +1636,31 @@ function AppContent() {
 
   // في حالة تفعيل طبقة المدارس المحيطة واختيار مدرسة أساسية، نعرض المدرسة الأساسية والمدارس المحيطة فقط لتجنب التشتيت
   const mapPlacesToDisplay = useMemo(() => {
+    // إذا كان هناك مدرسة أساسية مختارة، نعرضها هي وجيرانها فقط بغض النظر عن فلاتر المحافظة العامة
+    // لضمان عدم اختفاء النقطة المركزية حتى لو كانت خارج المحافظة المحددة للفلترة
     if (isSurroundingActive && surroundingBaseSchool) {
       return [surroundingBaseSchool, ...surroundingSchools];
     }
-    return filteredPlaces;
-  }, [isSurroundingActive, surroundingBaseSchool, surroundingSchools, filteredPlaces]);
+
+    let baseSet = filteredPlaces;
+
+    // تطبيق فلاتر النطاق الجغرافي على الكل إذا كان الوضع نشطاً ولم يتم اختيار مدرسة بعد
+    if (isSurroundingActive) {
+      baseSet = baseSet.filter(p => {
+        if (surroundingRegion !== 'all') {
+          const r = getSchoolRegion(p, fileMappings);
+          if (!r || (!normalizeArabic(r).includes(normalizeArabic(surroundingRegion)) && !normalizeArabic(surroundingRegion).includes(normalizeArabic(r)))) return false;
+        }
+        if (surroundingGovernorate !== 'all') {
+          const g = getSchoolGovernorate(p, fileMappings);
+          if (!g || (!normalizeArabic(g).includes(normalizeArabic(surroundingGovernorate)) && !normalizeArabic(surroundingGovernorate).includes(normalizeArabic(g)))) return false;
+        }
+        return true;
+      });
+    }
+    
+    return isSurroundingActive ? baseSet : filteredPlaces;
+  }, [isSurroundingActive, surroundingBaseSchool, surroundingSchools, filteredPlaces, surroundingRegion, surroundingGovernorate, fileMappings]);
 
   const handleSearchSubmit = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter') {
@@ -1738,6 +1766,8 @@ function AppContent() {
               surroundingRadius={surroundingRadius}
               surroundingGender={surroundingGender}
               surroundingLevel={surroundingLevel}
+              surroundingRegion={surroundingRegion}
+              surroundingGovernorate={surroundingGovernorate}
               surroundingSchools={surroundingSchools}
               currentUser={currentUser}
             />
@@ -1779,49 +1809,6 @@ function AppContent() {
             }
           `}</style>
           
-          {/* ترويسة رسمية للمملكة ووزارة التعليم (كليشة وحدة القبول المعتمدة) */}
-          <div className="grid grid-cols-3 items-start justify-between border-b-4 border-indigo-700 pb-5 mb-6 text-xs font-bold text-gray-800">
-            {/* Right Side */}
-            <div className="text-right space-y-1">
-              <div>المملكة العربية السعودية</div>
-              <div>وزارة التعليم</div>
-              <div className="text-gray-400 text-[10px]">(٢٨٠)</div>
-              <div>إدارة التعليم بمنطقة المدينة المنورة</div>
-            </div>
-            
-            {/* Middle Side (Logo & Basmala) */}
-            <div className="text-center">
-              <div className="text-[9px] font-bold text-gray-400 mb-1">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</div>
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 100" className="h-16 mx-auto">
-                <g fill="#10b981">
-                  <circle cx="60" cy="20" r="2.5" fill="#0ea5e9"/>
-                  <circle cx="50" cy="24" r="3"/>
-                  <circle cx="70" cy="24" r="3"/>
-                  <circle cx="42" cy="31" r="3.5"/>
-                  <circle cx="78" cy="31" r="3.5"/>
-                  <circle cx="36" cy="40" r="4"/>
-                  <circle cx="84" cy="40" r="4"/>
-                  <circle cx="52" cy="35" r="2.5" fill="#0ea5e9"/>
-                  <circle cx="68" cy="35" r="2.5" fill="#0ea5e9"/>
-                  <circle cx="60" cy="42" r="3" fill="#10b981"/>
-                  <circle cx="48" cy="48" r="3" fill="#10b981"/>
-                  <circle cx="72" cy="48" r="3" fill="#10b981"/>
-                  <circle cx="60" cy="56" r="3.5" fill="#0ea5e9"/>
-                </g>
-                <text x="60" y="75" fontFamily="'Tajawal', sans-serif" fontWeight="950" fontSize="10" fill="#1e3a8a" textAnchor="middle">وزارة التعليم</text>
-                <text x="60" y="86" fontFamily="'Tajawal', sans-serif" fontWeight="700" fontSize="7" fill="#64748b" textAnchor="middle" letterSpacing="0.5">Ministry of Education</text>
-              </svg>
-            </div>
-            
-            {/* Left Side */}
-            <div className="text-left space-y-1">
-              <div>الشؤون التعليمية</div>
-              <div className="text-indigo-900 font-black text-sm mt-0.5">وحدة القبول</div>
-              <div className="text-[10px] text-gray-400 font-normal mt-2">تاريخ التصدير: {new Date().toLocaleDateString('ar-SA')}</div>
-              <div className="text-[10px] text-gray-400 font-normal">الوقت: {new Date().toLocaleTimeString('ar-SA')}</div>
-            </div>
-          </div>
-
           {/* عنوان التقرير الفرعي */}
           <div className="text-center mb-8">
             <h2 className="text-base font-black text-indigo-950 inline-block bg-indigo-50 border border-indigo-100/80 px-8 py-2 rounded-xl shadow-sm">
@@ -1925,18 +1912,6 @@ function AppContent() {
                 )}
               </tbody>
             </table>
-          </div>
-
-          {/* تذييل واعتمادات */}
-          <div className="mt-16 pt-8 border-t border-gray-200 grid grid-cols-2 gap-12 text-center text-sm">
-            <div>
-              <p className="font-bold text-gray-500 mb-14">معد التقرير: {currentUser?.name || "مستخدم النظام"}</p>
-              <div className="border-t border-dashed border-gray-300 w-52 mx-auto"></div>
-            </div>
-            <div>
-              <p className="font-bold text-gray-500 mb-14">رئيس وحدة القبول</p>
-              <div className="border-t border-dashed border-gray-300 w-52 mx-auto"></div>
-            </div>
           </div>
         </div>
       )}

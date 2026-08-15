@@ -178,31 +178,6 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
   <!-- التقرير الفعلي للطباعة -->
   <div class="max-w-4xl mx-auto bg-white p-8 sm:p-12 rounded-2xl border border-gray-200 shadow-sm print-shadow-none">
     
-    <!-- ترويسة رسمية للمملكة ووزارة التعليم (كليشة وحدة القبول المعتمدة) -->
-    <div class="grid grid-cols-3 items-start justify-between border-b-4 border-indigo-700 pb-5 mb-6 text-xs font-bold text-gray-800">
-      <!-- Right Side -->
-      <div class="text-right space-y-1">
-        <div>المملكة العربية السعودية</div>
-        <div>وزارة التعليم</div>
-        <div class="text-gray-400 text-[10px]">(٢٨٠)</div>
-        <div>إدارة التعليم بمنطقة المدينة المنورة</div>
-      </div>
-      
-      <!-- Middle Side (Logo & Basmala) -->
-      <div class="text-center">
-        <div class="text-[9px] font-bold text-gray-400 mb-1">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</div>
-        <img src="/moe-logo.svg" class="h-16 mx-auto object-contain" alt="شعار وزارة التعليم" />
-      </div>
-      
-      <!-- Left Side -->
-      <div class="text-left space-y-1">
-        <div>الشؤون التعليمية</div>
-        <div class="text-indigo-900 font-black text-sm mt-0.5">وحدة القبول</div>
-        <div class="text-[10px] text-gray-400 font-normal mt-2">تاريخ التصدير: ${new Date().toLocaleDateString('ar-SA')}</div>
-        <div class="text-[10px] text-gray-400 font-normal">الوقت: ${new Date().toLocaleTimeString('ar-SA')}</div>
-      </div>
-    </div>
-
     <!-- عنوان التقرير الفرعي -->
     <div class="text-center mb-8">
       <h2 class="text-base font-black text-indigo-950 inline-block bg-indigo-50 border border-indigo-100/80 px-8 py-2 rounded-xl shadow-sm">
@@ -282,18 +257,6 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
       </div>
     </div>
 
-    <!-- تذييل واعتمادات التقرير -->
-    <div class="mt-16 pt-8 border-t border-gray-200 grid grid-cols-2 gap-8 text-center text-xs">
-      <div>
-        <p class="font-bold text-gray-400 mb-12">معد التقرير: ${currentUser?.name || "مستخدم النظام"}</p>
-        <div class="border-t border-dashed border-gray-300 w-48 mx-auto"></div>
-      </div>
-      <div>
-        <p class="font-bold text-gray-400 mb-12">رئيس وحدة القبول</p>
-        <div class="border-t border-dashed border-gray-300 w-48 mx-auto"></div>
-      </div>
-    </div>
-
   </div>
 
   <script>
@@ -361,31 +324,6 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
         {/* محتوى المعاينة القابل للتمرير */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
           <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 max-w-3xl mx-auto text-right text-gray-900">
-            {/* ترويسة رسمية للمملكة ووزارة التعليم (كليشة وحدة القبول المعتمدة) */}
-            <div className="grid grid-cols-3 items-start justify-between border-b-4 border-indigo-700 pb-5 mb-6 text-xs font-bold text-gray-800">
-              {/* Right Side */}
-              <div className="text-right space-y-1">
-                <div>المملكة العربية السعودية</div>
-                <div>وزارة التعليم</div>
-                <div className="text-gray-400 text-[10px]">(٢٨٠)</div>
-                <div>إدارة التعليم بمنطقة المدينة المنورة</div>
-              </div>
-              
-              {/* Middle Side (Logo & Basmala) */}
-              <div className="text-center">
-                <div className="text-[9px] font-bold text-gray-400 mb-1">بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</div>
-                <img src="/moe-logo.svg" className="h-16 mx-auto object-contain" alt="شعار وزارة التعليم" />
-              </div>
-              
-              {/* Left Side --> */}
-              <div className="text-left space-y-1">
-                <div>الشؤون التعليمية</div>
-                <div className="text-indigo-900 font-black text-sm mt-0.5">وحدة القبول</div>
-                <div className="text-[10px] text-gray-400 font-normal mt-2">تاريخ التصدير: {new Date().toLocaleDateString('ar-SA')}</div>
-                <div className="text-[10px] text-gray-400 font-normal">الوقت: {new Date().toLocaleTimeString('ar-SA')}</div>
-              </div>
-            </div>
-
             {/* عنوان التقرير الفرعي */}
             <div className="text-center mb-8">
               <h2 className="text-base font-black text-indigo-950 inline-block bg-indigo-50 border border-indigo-100/80 px-8 py-2 rounded-xl shadow-sm">
@@ -489,18 +427,6 @@ export const PrintReportModal: React.FC<PrintReportModalProps> = ({
                   )}
                 </tbody>
               </table>
-            </div>
-
-            {/* تذييل واعتمادات التقرير */}
-            <div className="mt-12 pt-6 border-t border-gray-200 grid grid-cols-2 gap-8 text-center text-xs">
-              <div>
-                <p className="font-bold text-gray-500 mb-10">معد التقرير: {currentUser?.name || "مستخدم النظام"}</p>
-                <div className="border-t border-dashed border-gray-300 w-40 mx-auto"></div>
-              </div>
-              <div>
-                <p className="font-bold text-gray-500 mb-10">رئيس وحدة القبول</p>
-                <div className="border-t border-dashed border-gray-300 w-40 mx-auto"></div>
-              </div>
             </div>
           </div>
         </div>

@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { X, SlidersHorizontal, School, Building, LandPlot, Hammer, ChevronDown, ChevronUp, Layers, Baby, HeartHandshake, Sparkles, Globe, FileText } from 'lucide-react';
+import { X, SlidersHorizontal, School, Building, LandPlot, Hammer, ChevronDown, ChevronUp, Layers, Baby, HeartHandshake, Sparkles, Globe, FileText, Trash2 } from 'lucide-react';
 import type { FilterState, Category, EducationalPlace, User } from '../types';
-import { useData, getSchoolLevel, getSchoolGender, getSchoolGovernorate, getSchoolRegion, getPlaceGroup, getPlaceGroupLabel, extractDistrictNameFromProperties } from '../App';
+import { useData, getSchoolLevel, getSchoolGender, getSchoolGovernorate, getSchoolRegion, getPlaceGroup, getPlaceGroupLabel, extractDistrictNameFromProperties, normalizeArabic } from '../App';
 import { Button } from './ui/Button';
 import { Separator } from './ui/Separator';
 
@@ -102,6 +102,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { boundaryGeojson, allPlaces, fileMappings } = useData();
   const isAdmin = currentUser?.role === 'admin';
 
+  const isBeneficiary = currentUser?.userType === 'beneficiary';
+
   const districts = useMemo(() => {
     const set = new Set<string>();
 
@@ -163,12 +165,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       
       if (surroundingRegion !== 'all') {
         const r = getSchoolRegion(p, fileMappings);
-        if (r !== surroundingRegion) return false;
+        if (!r || !normalizeArabic(r).includes(normalizeArabic(surroundingRegion))) return false;
       }
       
       if (surroundingGovernorate !== 'all') {
         const g = getSchoolGovernorate(p, fileMappings);
-        if (g !== surroundingGovernorate) return false;
+        if (!g || !normalizeArabic(g).includes(normalizeArabic(surroundingGovernorate))) return false;
       }
       
       return true;
@@ -535,6 +537,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         <span className="truncate">{surroundingBaseSchool.name}</span>
                       </div>
                       
+                      <button
+                        onClick={() => setSurroundingBaseSchool && setSurroundingBaseSchool(null)}
+                        className="flex items-center gap-1.5 text-[10px] font-extrabold text-red-600 hover:text-red-700 transition-colors px-1"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                        <span>حذف {baseLabels.singular} الأساسية</span>
+                      </button>
+                      
                       <div className="border-t border-slate-200 pt-1.5">
                         <p className="text-[10px] font-extrabold text-slate-700 mb-1">النتائج ({surroundingSchools.length}):</p>
                         {surroundingSchools.length > 0 ? (
@@ -573,83 +583,87 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
           </CollapsibleSection>
 
-          <Separator className="my-2 bg-slate-200" />
+          {!isBeneficiary && (
+            <>
+              <Separator className="my-2 bg-slate-200" />
 
-          <CollapsibleSection title="الفلاتر المتقدمة" icon={SlidersHorizontal}>
-             {showAnyFilterGroup ? (
-                <div className="space-y-2">
-                {visibleCategories.has('schools') && (
-                    <FilterGroup title="فلاتر المدارس المتقدمة">
-                        <SelectControl label="المرحلة الدراسية" value={filters.schools.level} onChange={e => handleFilterChange('schools', 'level', e.target.value)}>
-                            <option value="all">الكل</option>
-                            <option value="رياض الأطفال">رياض الأطفال</option>
-                            <option value="المرحلة الإبتدائية">المرحلة الإبتدائية</option>
-                            <option value="المرحلة المتوسطة">المرحلة المتوسطة</option>
-                            <option value="المرحلة الثانوية">المرحلة الثانوية</option>
-                        </SelectControl>
-                        
-                        <SelectControl label="المحافظة" value={filters.schools.governorate} onChange={e => handleFilterChange('schools', 'governorate', e.target.value)}>
-                            <option value="all">الكل</option>{governorates.map(g => <option key={g} value={g}>{g}</option>)}
-                        </SelectControl>
-                        
-                        <SelectControl label="الحي" value={filters.schools.district} onChange={e => handleFilterChange('schools', 'district', e.target.value)}>
-                            <option value="">الكل (بدون تصفية حي)</option>
-                            {districts.map(d => (
-                                <option key={d} value={d}>{d}</option>
-                            ))}
-                        </SelectControl>
+              <CollapsibleSection title="الفلاتر المتقدمة" icon={SlidersHorizontal}>
+                 {showAnyFilterGroup ? (
+                    <div className="space-y-2">
+                    {visibleCategories.has('schools') && (
+                        <FilterGroup title="فلاتر المدارس المتقدمة">
+                            <SelectControl label="المرحلة الدراسية" value={filters.schools.level} onChange={e => handleFilterChange('schools', 'level', e.target.value)}>
+                                <option value="all">الكل</option>
+                                <option value="رياض الأطفال">رياض الأطفال</option>
+                                <option value="المرحلة الإبتدائية">المرحلة الإبتدائية</option>
+                                <option value="المرحلة المتوسطة">المرحلة المتوسطة</option>
+                                <option value="المرحلة الثانوية">المرحلة الثانوية</option>
+                            </SelectControl>
+                            
+                            <SelectControl label="المحافظة" value={filters.schools.governorate} onChange={e => handleFilterChange('schools', 'governorate', e.target.value)}>
+                                <option value="all">الكل</option>{governorates.map(g => <option key={g} value={g}>{g}</option>)}
+                            </SelectControl>
+                            
+                            <SelectControl label="الحي" value={filters.schools.district} onChange={e => handleFilterChange('schools', 'district', e.target.value)}>
+                                <option value="">الكل (بدون تصفية حي)</option>
+                                {districts.map(d => (
+                                    <option key={d} value={d}>{d}</option>
+                                ))}
+                            </SelectControl>
 
-                        {/* عدد المدارس في الحي (للأدمن فقط) */}
-                        {isAdmin && (
-                            <>
-                                <SelectControl label="كثافة المدارس بالحي" value={filters.schools.schoolsCountPreset} onChange={e => handleFilterChange('schools', 'schoolsCountPreset', e.target.value)}>
-                                    <option value="all">الكل (بدون تصفية كثافة)</option>
-                                    <option value="low">منخفضة (أقل من 3)</option>
-                                    <option value="medium">متوسطة (3 - 7)</option>
-                                    <option value="high">مرتفعة (أكثر من 7)</option>
-                                    <option value="custom">مخصص...</option>
-                                </SelectControl>
-                                {filters.schools.schoolsCountPreset === 'custom' && (
-                                    <div className="flex gap-1.5">
-                                        <InputControl label="الحد الأدنى" type="number" value={filters.schools.minSchoolsInDistrict} onChange={e => handleFilterChange('schools', 'minSchoolsInDistrict', e.target.value)} placeholder="2" />
-                                        <InputControl label="الحد الأقصى" type="number" value={filters.schools.maxSchoolsInDistrict} onChange={e => handleFilterChange('schools', 'maxSchoolsInDistrict', e.target.value)} placeholder="15" />
-                                    </div>
-                                )}
-                            </>
-                        )}
+                            {/* عدد المدارس في الحي (للأدمن فقط) */}
+                            {isAdmin && (
+                                <>
+                                    <SelectControl label="كثافة المدارس بالحي" value={filters.schools.schoolsCountPreset} onChange={e => handleFilterChange('schools', 'schoolsCountPreset', e.target.value)}>
+                                        <option value="all">الكل (بدون تصفية كثافة)</option>
+                                        <option value="low">منخفضة (أقل من 3)</option>
+                                        <option value="medium">متوسطة (3 - 7)</option>
+                                        <option value="high">مرتفعة (أكثر من 7)</option>
+                                        <option value="custom">مخصص...</option>
+                                    </SelectControl>
+                                    {filters.schools.schoolsCountPreset === 'custom' && (
+                                        <div className="flex gap-1.5">
+                                            <InputControl label="الحد الأدنى" type="number" value={filters.schools.minSchoolsInDistrict} onChange={e => handleFilterChange('schools', 'minSchoolsInDistrict', e.target.value)} placeholder="2" />
+                                            <InputControl label="الحد الأقصى" type="number" value={filters.schools.maxSchoolsInDistrict} onChange={e => handleFilterChange('schools', 'maxSchoolsInDistrict', e.target.value)} placeholder="15" />
+                                        </div>
+                                    )}
+                                </>
+                            )}
 
-                        {/* المسافة بين المدارس في الحي */}
-                        <SelectControl label="تباعد بالحي نفسه" value={filters.schools.distanceInDistrictPreset} onChange={e => handleFilterChange('schools', 'distanceInDistrictPreset', e.target.value)}>
-                            <option value="all">الكل (بدون تصفية تباعد)</option>
-                            <option value="close">متقاربة (أقل من 500م)</option>
-                            <option value="far">متباعدة (أكثر من 2000م)</option>
-                            <option value="custom">مخصص...</option>
-                        </SelectControl>
-                        {filters.schools.distanceInDistrictPreset === 'custom' && (
-                            <div className="flex gap-1.5">
-                                <InputControl label="الأدنى (م)" type="number" value={filters.schools.minDistanceInDistrict} onChange={e => handleFilterChange('schools', 'minDistanceInDistrict', e.target.value)} placeholder="100" />
-                                <InputControl label="الأقصى (م)" type="number" value={filters.schools.maxDistanceInDistrict} onChange={e => handleFilterChange('schools', 'maxDistanceInDistrict', e.target.value)} placeholder="5000" />
-                            </div>
-                        )}
-                    </FilterGroup>
-                )}
+                            {/* المسافة بين المدارس في الحي */}
+                            <SelectControl label="تباعد بالحي نفسه" value={filters.schools.distanceInDistrictPreset} onChange={e => handleFilterChange('schools', 'distanceInDistrictPreset', e.target.value)}>
+                                <option value="all">الكل (بدون تصفية تباعد)</option>
+                                <option value="close">متقاربة (أقل من 500م)</option>
+                                <option value="far">متباعدة (أكثر من 2000م)</option>
+                                <option value="custom">مخصص...</option>
+                            </SelectControl>
+                            {filters.schools.distanceInDistrictPreset === 'custom' && (
+                                <div className="flex gap-1.5">
+                                    <InputControl label="الأدنى (م)" type="number" value={filters.schools.minDistanceInDistrict} onChange={e => handleFilterChange('schools', 'minDistanceInDistrict', e.target.value)} placeholder="100" />
+                                    <InputControl label="الأقصى (م)" type="number" value={filters.schools.maxDistanceInDistrict} onChange={e => handleFilterChange('schools', 'maxDistanceInDistrict', e.target.value)} placeholder="5000" />
+                                </div>
+                            )}
+                        </FilterGroup>
+                    )}
+                    </div>
+                  ) : <p className="text-xs text-center font-bold text-slate-500 p-2">حدد طبقة لعرض فلاترها.</p>}
+              </CollapsibleSection>
+              
+              <Separator className="my-2 bg-slate-200" />
+
+              <CollapsibleSection title="التقارير والإحصائيات" icon={FileText}>
+                <div className="p-2 bg-white rounded-lg border border-slate-200 space-y-2">
+                  <p className="text-xs font-bold text-slate-700 leading-snug">
+                    إنشاء تقارير إحصائية بناءً على الطبقات والفلاتر النشطة.
+                  </p>
+                  <Button onClick={onReportsClick} className="w-full gap-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs py-1.5">
+                    <FileText className="h-3.5 w-3.5" />
+                    لوحة التقارير
+                  </Button>
                 </div>
-              ) : <p className="text-xs text-center font-bold text-slate-500 p-2">حدد طبقة لعرض فلاترها.</p>}
-          </CollapsibleSection>
-          
-          <Separator className="my-2 bg-slate-200" />
-
-          <CollapsibleSection title="التقارير والإحصائيات" icon={FileText}>
-            <div className="p-2 bg-white rounded-lg border border-slate-200 space-y-2">
-              <p className="text-xs font-bold text-slate-700 leading-snug">
-                إنشاء تقارير إحصائية بناءً على الطبقات والفلاتر النشطة.
-              </p>
-              <Button onClick={onReportsClick} className="w-full gap-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs py-1.5">
-                <FileText className="h-3.5 w-3.5" />
-                لوحة التقارير
-              </Button>
-            </div>
-          </CollapsibleSection>
+              </CollapsibleSection>
+            </>
+          )}
         </div>
 
         <div className="p-2 border-t border-slate-200 bg-slate-100 shrink-0">

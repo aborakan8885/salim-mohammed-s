@@ -1,8 +1,8 @@
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import type { EducationalPlace, Category, FileMapping, User } from '../types';
 import { Loader2 } from 'lucide-react';
-import { useData, getPlaceGroup, getPlaceGroupLabel, extractDistrictNameFromProperties } from '../App';
+import { useData, getPlaceGroup, getPlaceGroupLabel, extractDistrictNameFromProperties, normalizeArabic } from '../App';
 
 // --- مساعدات العرض ---
 
@@ -150,6 +150,8 @@ interface MapCanvasProps {
   surroundingRadius?: number;
   surroundingGender?: string;
   surroundingLevel?: string;
+  surroundingRegion?: string;
+  surroundingGovernorate?: string;
   surroundingSchools?: EducationalPlace[];
 }
 
@@ -161,6 +163,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   allPlaces,
   isLoading,
   currentUser = null,
+  filters,
 
   isSurroundingActive = false,
   surroundingBaseSchool = null,
@@ -168,6 +171,8 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
   surroundingRadius = 2000,
   surroundingGender = 'all',
   surroundingLevel = 'all',
+  surroundingRegion = 'all',
+  surroundingGovernorate = 'all',
   surroundingSchools = [],
 }) => {
     const mapRef = useRef<L.Map | null>(null);
@@ -228,6 +233,73 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
         }
     }, [mapType]);
 
+    // --- تحسين الأداء القصوى: فهرسة المفاتيح وتخزين القيم المصفاة ---
+    const filteredBoundaryGeojson = useMemo(() => {
+        if (!isAdmin || !boundaryGeojson || !boundaryGeojson.features) return null;
+
+        const activeRegion = isSurroundingActive ? surroundingRegion : (filters?.region || 'all');
+        const activeGov = isSurroundingActive ? surroundingGovernorate : (filters?.governorate || 'all');
+
+        if (activeRegion === 'all' && activeGov === 'all') return boundaryGeojson;
+
+        const normActiveRegion = normalizeArabic(activeRegion);
+        const normActiveGov = normalizeArabic(activeGov);
+
+        // محاولة إيجاد أسماء الأعمدة الصحيحة مرة واحدة فقط بدلاً من البحث في كل ميزة
+        let regionKey: string | null = null;
+        let govKey: string | null = null;
+
+        if (boundaryGeojson.features.length > 0) {
+            const firstProps = boundaryGeojson.features[0].properties || {};
+            for (const k of Object.keys(firstProps)) {
+                const kn = normalizeArabic(k);
+                if (!regionKey && (kn.includes('المنطقه') || k.toLowerCase().includes('region'))) regionKey = k;
+                if (!govKey && (kn.includes('المحافظه') || k.toLowerCase().includes('governorate'))) govKey = k;
+            }
+        }
+
+        const filteredFeatures = boundaryGeojson.features.filter(feature => {
+            const props = feature.properties || {};
+
+            if (activeRegion !== 'all' && regionKey) {
+                const val = props[regionKey];
+                if (!val) return false;
+                const nV = normalizeArabic(String(val));
+                if (!nV.includes(normActiveRegion) && !normActiveRegion.includes(nV)) return false;
+            } else if (activeRegion !== 'all') {
+                // Fallback if key not found in first feature
+                let found = false;
+                for (const [k, v] of Object.entries(props)) {
+                    if (normalizeArabic(k).includes('المنطقه') || k.toLowerCase().includes('region')) {
+                        const nV = normalizeArabic(String(v));
+                        if (nV.includes(normActiveRegion) || normActiveRegion.includes(nV)) { found = true; break; }
+                    }
+                }
+                if (!found) return false;
+            }
+
+            if (activeGov !== 'all' && govKey) {
+                const val = props[govKey];
+                if (!val) return false;
+                const nV = normalizeArabic(String(val));
+                if (!nV.includes(normActiveGov) && !normActiveGov.includes(nV)) return false;
+            } else if (activeGov !== 'all') {
+                // Fallback if key not found in first feature
+                let found = false;
+                for (const [k, v] of Object.entries(props)) {
+                    if (normalizeArabic(k).includes('المحافظه') || k.toLowerCase().includes('governorate')) {
+                        const nV = normalizeArabic(String(v));
+                        if (nV.includes(normActiveGov) || normActiveGov.includes(nV)) { found = true; break; }
+                    }
+                }
+                if (!found) return false;
+            }
+            return true;
+        });
+
+        return { ...boundaryGeojson, features: filteredFeatures };
+    }, [boundaryGeojson, isSurroundingActive, surroundingRegion, surroundingGovernorate, filters, isAdmin]);
+
     // رسم طبقة الحدود الجغرافية للحي على الخريطة بشكل احترافي مع ميزات التفاعل
     useEffect(() => {
         const map = mapRef.current;
@@ -238,7 +310,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
             boundaryLayerRef.current = null;
         }
 
-        if (!isAdmin || !boundaryGeojson || !Array.isArray(boundaryGeojson.features) || boundaryGeojson.features.length === 0) {
+        if (!filteredBoundaryGeojson || !Array.isArray(filteredBoundaryGeojson.features) || filteredBoundaryGeojson.features.length === 0) {
             return;
         }
 
@@ -251,10 +323,10 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                     pane.style.pointerEvents = 'auto';
                 }
 
-                const geoLayer = L.geoJSON(boundaryGeojson, {
+                const geoLayer = L.geoJSON(filteredBoundaryGeojson, {
                     pane: 'boundaryPane',
                     style: (feature) => {
-                        const idx = feature && boundaryGeojson.features ? boundaryGeojson.features.indexOf(feature) : 0;
+                        const idx = feature && (filteredBoundaryGeojson as any).features ? (filteredBoundaryGeojson as any).features.indexOf(feature) : 0;
                         return getDistrictFeatureStyle(feature, idx >= 0 ? idx : 0);
                     },
                     onEachFeature: (feature, layer) => {
@@ -290,7 +362,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                             mouseout: (e) => {
                                 const l = e.target as any;
                                 if (l && typeof l.setStyle === 'function') {
-                                    const idx = feature && boundaryGeojson.features ? boundaryGeojson.features.indexOf(feature) : 0;
+                                    const idx = feature && (filteredBoundaryGeojson as any).features ? (filteredBoundaryGeojson as any).features.indexOf(feature) : 0;
                                     const origStyle = getDistrictFeatureStyle(feature, idx >= 0 ? idx : 0);
                                     l.setStyle(origStyle);
                                 }
@@ -314,7 +386,7 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
         });
 
         return () => cancelAnimationFrame(animId);
-    }, [boundaryGeojson]);
+    }, [filteredBoundaryGeojson]);
 
     // الرسم المباشر بناءً على ما يرسله الأب (App.tsx)
     useEffect(() => {

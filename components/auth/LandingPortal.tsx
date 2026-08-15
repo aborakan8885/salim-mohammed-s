@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { User as UserIcon, ShieldCheck, LogIn, Search, CheckCircle2, AlertTriangle, KeyRound, Building, MapPin, Sparkles, ArrowRight, EyeOff, Lock, FileSpreadsheet } from 'lucide-react';
+import { User as UserIcon, ShieldCheck, LogIn, Search, CheckCircle2, AlertTriangle, KeyRound, Building, MapPin, Sparkles, ArrowRight, EyeOff, Lock, FileSpreadsheet, MessageSquare } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Alert, AlertDescription } from '../ui/Alert';
 import type { User } from '../../types';
 import { getMockUsers, saveMockUsers } from '../modals/AuthModal';
 import { MinistryLogo } from '../MinistryLogo';
+import { DeveloperContactModal } from './DeveloperContactModal';
 
 interface LandingPortalProps {
   onLoginSuccess: (user: User) => void;
@@ -48,6 +49,7 @@ export const LandingPortal: React.FC<LandingPortalProps> = ({ onLoginSuccess }) 
   const [selectedGate, setSelectedGate] = useState<'employee' | 'beneficiary'>('employee');
   const [employeeMode, setEmployeeMode] = useState<'login' | 'register_step1' | 'register_step2' | 'register_step3'>('login');
   const [error, setError] = useState('');
+  const [isContactModalOpen, setIsContactModalOpen] = useState(false);
 
   // Login form state
   const [civilIdLogin, setCivilIdLogin] = useState('');
@@ -564,10 +566,21 @@ export const LandingPortal: React.FC<LandingPortalProps> = ({ onLoginSuccess }) 
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="relative z-10 w-full border-t border-slate-800/80 bg-slate-900/90 py-1.5 text-center text-[9px] sm:text-[10px] text-slate-500 font-medium px-4 shrink-0">
-        <span>جميع الحقوق محفوظة © {new Date().getFullYear()} الإدارة العامة للتعليم بمنطقة المدينة المنورة • وزارة التعليم</span>
-      </footer>
+      {/* Developer Contact Button (Bottom Left) */}
+      <div className="absolute bottom-6 left-6 z-20">
+        <button
+          onClick={() => setIsContactModalOpen(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-slate-900/80 hover:bg-emerald-600 border border-slate-700 hover:border-emerald-500 rounded-full text-slate-300 hover:text-white text-xs font-bold transition-all shadow-lg backdrop-blur-md group"
+        >
+          <MessageSquare className="h-4 w-4 group-hover:scale-110 transition-transform" />
+          <span>للتواصل مع المبرمج</span>
+        </button>
+      </div>
+
+      <DeveloperContactModal 
+        isOpen={isContactModalOpen} 
+        onClose={() => setIsContactModalOpen(false)} 
+      />
     </div>
   );
 };

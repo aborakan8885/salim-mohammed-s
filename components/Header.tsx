@@ -18,9 +18,7 @@ export const Header: React.FC<HeaderProps> = ({ user, onLoginClick, onLogoutClic
         {/* Top bar row on mobile: Logo + Auth actions */}
         <div className="w-full md:w-auto flex items-center justify-between gap-2">
           {/* Official Ministry of Education Logo Badge */}
-          <div className="flex items-center justify-start shrink-0">
-            <MinistryLogo className="h-12 sm:h-14" />
-          </div>
+          <MinistryLogo />
 
           {/* User actions on small screens */}
           <div className="flex md:hidden items-center gap-1.5" dir="rtl">
