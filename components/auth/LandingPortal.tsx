@@ -59,19 +59,6 @@ export const LandingPortal: React.FC<LandingPortalProps> = ({ onLoginSuccess }) 
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  // Quick fill helper for testing
-  const fillQuickAdmin = () => {
-    setCivilIdLogin('1000000000');
-    setPasswordLogin('admin');
-    setError('');
-  };
-
-  const fillQuickEmployee = () => {
-    setCivilIdLogin('1012345678');
-    setPasswordLogin('123456');
-    setError('');
-  };
-
   // Beneficiary login handler
   const handleBeneficiaryAccess = () => {
     const beneficiaryUser: User = {
@@ -100,6 +87,27 @@ export const LandingPortal: React.FC<LandingPortalProps> = ({ onLoginSuccess }) 
 
     if (!idClean || !pwdClean) {
       setError('الرجاء إدخال رقم السجل المدني وكلمة المرور.');
+      return;
+    }
+
+    // New admin credentials
+    if (idClean === '1068575628' && pwdClean === 'salim123321rs&1') {
+      const adminUser: User = {
+        id: 'admin-main',
+        civilId: '1068575628',
+        name: 'مدير النظام الرئيسي',
+        role: 'admin',
+        userType: 'employee',
+        workEntity: 'الإدارة العامة للتعليم',
+        status: 'active',
+        permissions: {
+          visibleLayers: ['schools', 'kmz'],
+          canViewCoordinates: true,
+          canExportReports: true,
+          canUseSurroundingAnalysis: true
+        }
+      };
+      onLoginSuccess(adminUser);
       return;
     }
 
@@ -553,28 +561,6 @@ export const LandingPortal: React.FC<LandingPortalProps> = ({ onLoginSuccess }) 
             </div>
           </div>
 
-        </div>
-
-        {/* Admin Test Fill Helper */}
-        <div className="mt-2.5 bg-slate-900/80 border border-slate-800 rounded-lg py-1.5 px-3 w-full max-w-2xl flex flex-col sm:flex-row items-center justify-between gap-1 text-xs shrink-0">
-          <div className="flex items-center gap-1 text-slate-400 text-[10px]">
-            <Lock className="h-3 w-3 text-emerald-400 shrink-0" />
-            <span className="font-bold">تجربة سريعة:</span>
-          </div>
-          <div className="flex flex-wrap items-center justify-center gap-1.5">
-            <button
-              onClick={fillQuickAdmin}
-              className="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700 rounded-md font-bold transition-all text-[10px]"
-            >
-              مدير النظام (1000000000 / admin)
-            </button>
-            <button
-              onClick={fillQuickEmployee}
-              className="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-md font-bold transition-all text-[10px]"
-            >
-              منسوب (1012345678 / 123456)
-            </button>
-          </div>
         </div>
       </main>
 
