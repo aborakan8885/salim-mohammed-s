@@ -30,6 +30,8 @@ export const DeveloperContactModal: React.FC<DeveloperContactModalProps> = ({ is
     setStatus('sending');
     
     try {
+      if (!db) throw new Error('Database not initialized');
+
       await addDoc(collection(db, 'feedbacks'), {
         name: name.trim() || 'مستفيد غير معروف',
         phone: phone.trim() || '',
@@ -48,7 +50,8 @@ export const DeveloperContactModal: React.FC<DeveloperContactModalProps> = ({ is
     } catch (error) {
       console.error('Error sending feedback:', error);
       setStatus('error');
-      setTimeout(() => setStatus('idle'), 3000);
+      // No automatic reset to idle here to let user see error, 
+      // but ensure they can click again or cancel
     }
   };
 
@@ -199,8 +202,11 @@ export const DeveloperContactModal: React.FC<DeveloperContactModalProps> = ({ is
               <div className="flex items-center justify-between pt-2">
                 <Button
                   type="submit"
-                  disabled={status !== 'idle' || !message.trim()}
-                  className="bg-[#4d90a5] hover:bg-[#3d7a8c] text-white gap-2 px-8 font-bold rounded-xl h-11 transition-all disabled:opacity-50"
+                  disabled={status === 'sending' || status === 'success' || (status === 'idle' && !message.trim())}
+                  className={`gap-2 px-8 font-bold rounded-xl h-11 transition-all shadow-md ${
+                    status === 'error' ? 'bg-red-600 hover:bg-red-700' : 'bg-[#4d90a5] hover:bg-[#3d7a8c]'
+                  } text-white disabled:opacity-50`}
+                  onClick={status === 'error' ? () => setStatus('idle') : undefined}
                 >
                   {status === 'idle' && (
                     <>
@@ -220,7 +226,19 @@ export const DeveloperContactModal: React.FC<DeveloperContactModalProps> = ({ is
                       تم الإرسال بنجاح
                     </div>
                   )}
+                  {status === 'error' && (
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4" />
+                      فشل الإرسال - حاول مجدداً
+                    </div>
+                  )}
                 </Button>
+                
+                {status === 'error' && (
+                  <p className="text-[10px] text-red-500 font-bold mt-1 animate-pulse">
+                    ⚠️ حدث خطأ أثناء الإرسال. تأكد من اتصال الإنترنت وحاول مرة أخرى.
+                  </p>
+                )}
 
                 <button
                   type="button"
