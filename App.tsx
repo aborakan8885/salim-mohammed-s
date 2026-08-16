@@ -1921,12 +1921,9 @@ function AppContent() {
 }
 
 export default function App() { 
-  const [isUnlocked, setIsUnlocked] = useState(() => {
-    return localStorage.getItem('app_unlocked') === 'true';
-  });
+  const [isUnlocked, setIsUnlocked] = useState(false);
 
   const handleUnlock = () => {
-    localStorage.setItem('app_unlocked', 'true');
     setIsUnlocked(true);
   };
 

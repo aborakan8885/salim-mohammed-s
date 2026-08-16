@@ -30,6 +30,8 @@ export const Gateway: React.FC<GatewayProps> = ({ onUnlock }) => {
           <input
             autoFocus
             type="password"
+            name="app-gateway-pass"
+            autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="الرجاء إدخال رمز الدخول"
