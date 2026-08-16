@@ -1,6 +1,7 @@
 
 import React, { useState, useCallback, useEffect, createContext, useContext, ReactNode, useMemo, useRef } from 'react';
 import { Header } from './components/Header';
+import { Gateway } from './components/auth/Gateway';
 import { MapCanvas } from './components/MapCanvas';
 import { Sidebar } from './components/Sidebar';
 import { AuthModal } from './components/modals/AuthModal';
@@ -1919,4 +1920,19 @@ function AppContent() {
   );
 }
 
-export default function App() { return <DataProvider><AppContent /></DataProvider>; }
+export default function App() { 
+  const [isUnlocked, setIsUnlocked] = useState(() => {
+    return localStorage.getItem('app_unlocked') === 'true';
+  });
+
+  const handleUnlock = () => {
+    localStorage.setItem('app_unlocked', 'true');
+    setIsUnlocked(true);
+  };
+
+  if (!isUnlocked) {
+    return <Gateway onUnlock={handleUnlock} />;
+  }
+
+  return <DataProvider><AppContent /></DataProvider>; 
+}
