@@ -1,8 +1,9 @@
-import React from 'react';
-import { MapPin, User as UserIcon, LogIn, LogOut, Settings, ShieldCheck, EyeOff } from 'lucide-react';
+import React, { useState } from 'react';
+import { MapPin, User as UserIcon, LogIn, LogOut, Settings, ShieldCheck, EyeOff, BookOpen } from 'lucide-react';
 import { Button } from './ui/Button';
 import type { User as UserType } from '../types';
 import { MinistryLogo } from './MinistryLogo';
+import { GuideModal } from './modals/GuideModal';
 
 interface HeaderProps {
   user: UserType | null;
@@ -12,6 +13,8 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ user, onLoginClick, onLogoutClick, onAdminPanelClick }) => {
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
+
   return (
     <header className="w-full px-3 py-2 sm:px-4 sm:py-3 bg-primary-dark shadow-lg z-30 shrink-0 border-b-4 border-primary-light">
       <div className="container mx-auto flex flex-col md:flex-row items-center justify-between gap-2 md:gap-4">
@@ -102,6 +105,9 @@ export const Header: React.FC<HeaderProps> = ({ user, onLoginClick, onLogoutClic
           )}
         </div>
       </div>
+      {isGuideOpen && (
+        <GuideModal isOpen={isGuideOpen} onClose={() => setIsGuideOpen(false)} />
+      )}
     </header>
   );
 };

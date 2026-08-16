@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { User as UserIcon, ShieldCheck, LogIn, Search, CheckCircle2, AlertTriangle, KeyRound, Building, MapPin, Sparkles, ArrowRight, EyeOff, Lock, FileSpreadsheet, MessageSquare } from 'lucide-react';
+import { User as UserIcon, ShieldCheck, LogIn, Search, CheckCircle2, AlertTriangle, KeyRound, Building, MapPin, Sparkles, ArrowRight, EyeOff, Lock, FileSpreadsheet, MessageSquare, BookOpen } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Alert, AlertDescription } from '../ui/Alert';
 import type { User } from '../../types';
 import { getMockUsers, saveMockUsers } from '../modals/AuthModal';
 import { MinistryLogo } from '../MinistryLogo';
 import { DeveloperContactModal } from './DeveloperContactModal';
+import { GuideModal } from '../modals/GuideModal';
 
 interface LandingPortalProps {
   onLoginSuccess: (user: User) => void;
@@ -60,6 +61,7 @@ export const LandingPortal: React.FC<LandingPortalProps> = ({ onLoginSuccess }) 
   const [fetchedEmployee, setFetchedEmployee] = useState<{ name: string; civilId: string; workEntity: string; jobTitle: string; phone: string } | null>(null);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [isGuideOpen, setIsGuideOpen] = useState(false);
 
   // Beneficiary login handler
   const handleBeneficiaryAccess = () => {
@@ -275,6 +277,14 @@ export const LandingPortal: React.FC<LandingPortalProps> = ({ onLoginSuccess }) 
             <Sparkles className="h-3 w-3 text-emerald-400 shrink-0" />
             <span>بوابة الدخول الإلكترونية الموحدة</span>
           </div>
+
+          <button 
+            onClick={() => setIsGuideOpen(true)}
+            className="flex items-center gap-2 bg-[#1a546d] hover:bg-[#246a85] px-4 py-2 rounded-2xl border-2 border-primary-light/50 text-white transition-all shadow-lg hover:shadow-primary-light/20 group animate-pulse-subtle"
+          >
+            <BookOpen className="h-5 w-5 text-primary-light group-hover:scale-110 transition-transform" />
+            <span className="text-xs sm:text-sm font-bold">شرح استخدام الخارطة التعليمية</span>
+          </button>
         </div>
       </header>
 
@@ -580,6 +590,11 @@ export const LandingPortal: React.FC<LandingPortalProps> = ({ onLoginSuccess }) 
       <DeveloperContactModal 
         isOpen={isContactModalOpen} 
         onClose={() => setIsContactModalOpen(false)} 
+      />
+
+      <GuideModal 
+        isOpen={isGuideOpen} 
+        onClose={() => setIsGuideOpen(false)} 
       />
     </div>
   );
