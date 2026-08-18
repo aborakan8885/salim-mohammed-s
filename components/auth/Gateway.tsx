@@ -21,12 +21,12 @@ export const Gateway: React.FC<GatewayProps> = ({ onUnlock }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-[#1a546d] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[9999] bg-[#0c2d3a] flex flex-col items-center justify-center p-4">
       <form 
         onSubmit={handleSubmit}
-        className="w-full max-w-sm space-y-4 text-center"
+        className="w-full max-w-xl flex flex-col items-center"
       >
-        <div className="relative group">
+        <div className="relative w-full group">
           <input
             autoFocus
             type="password"
@@ -34,22 +34,24 @@ export const Gateway: React.FC<GatewayProps> = ({ onUnlock }) => {
             autoComplete="new-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="الرجاء إدخال رمز الدخول"
-            className={`w-full px-6 py-4 bg-white/10 border-2 rounded-2xl text-white text-center text-xl font-bold placeholder:text-white/30 focus:outline-none transition-all duration-300 ${
+            className={`w-full px-8 py-6 bg-[#4d90a5]/10 border border-[#4d90a5]/30 rounded-[28px] text-white text-center text-2xl tracking-[0.4em] focus:outline-none transition-all duration-500 shadow-2xl backdrop-blur-md ${
               error 
-                ? 'border-red-500 animate-shake' 
-                : 'border-white/20 focus:border-primary-light focus:bg-white/20'
+                ? 'border-red-500/50 bg-red-500/5 animate-shake' 
+                : 'hover:border-[#4d90a5]/50 focus:border-[#4d90a5]/60 focus:bg-[#4d90a5]/15'
             }`}
-            dir="rtl"
           />
           
           {error && (
-            <p className="absolute -bottom-8 left-0 right-0 text-red-300 text-sm font-bold animate-fade-in">
-              رمز الدخول غير صحيح
+            <p className="absolute -bottom-10 left-0 right-0 text-red-400 text-xs font-bold tracking-widest animate-fade-in text-center">
+              ACCESS DENIED
             </p>
           )}
         </div>
         
+        <div className="mt-12 text-[11px] uppercase tracking-[0.5em] text-[#4d90a5]/60 font-bold select-none">
+          Access Protected
+        </div>
+
         <button type="submit" className="hidden">Enter</button>
       </form>
 

@@ -336,8 +336,10 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
 
                         layer.bindTooltip(name, {
                             permanent: false,
-                            direction: 'center',
-                            className: 'font-sans font-bold text-xs bg-white text-primary-dark px-2.5 py-1.5 rounded-lg shadow-xl border border-primary-light/15',
+                            direction: 'top',
+                            sticky: true,
+                            interactive: false,
+                            className: 'font-sans font-bold text-xs bg-white text-primary-dark px-2.5 py-1.5 rounded-lg shadow-xl border border-primary-light/15 pointer-events-none',
                         });
 
                         // Lazy popup evaluation on click
@@ -349,6 +351,9 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                         layer.on({
                             mouseover: (e) => {
                                 const l = e.target as any;
+                                // Close any ghost tooltips on the map
+                                if (map) map.closeTooltip();
+                                
                                 if (l && typeof l.setStyle === 'function') {
                                     l.setStyle({
                                         fill: false,
@@ -356,8 +361,8 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                                         weight: 4.5,
                                         color: '#10b981', // Highlight active district border with emerald color
                                     });
-                                    if (l.bringToFront) l.bringToFront();
                                 }
+                                if (l.openTooltip) l.openTooltip();
                             },
                             mouseout: (e) => {
                                 const l = e.target as any;
@@ -366,6 +371,8 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
                                     const origStyle = getDistrictFeatureStyle(feature, idx >= 0 ? idx : 0);
                                     l.setStyle(origStyle);
                                 }
+                                if (l.closeTooltip) l.closeTooltip();
+                                if (map) map.closeTooltip();
                             },
                         });
                     }
@@ -410,8 +417,14 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
             allPlaces.forEach(place => {
                 const marker = L.marker([place.lat, place.lng], { icon: getCategoryIcon(place.category) });
                 if (!isBeneficiary) {
-                    // Lazy popup creation on click
-                    marker.bindPopup(() => createPopupContent(place), { closeButton: false, autoPan: false, offset: L.point(0, -5) });
+                    // Lazy popup creation on click with smart side-offsetting
+                    marker.bindPopup(() => createPopupContent(place), { 
+                        closeButton: false, 
+                        autoPan: true, 
+                        autoPanPaddingTop: 100,
+                        autoPanPaddingLeft: 50,
+                        offset: L.point(-170, 150) 
+                    });
                 }
                 marker.on('click', (e) => { 
                     L.DomEvent.stopPropagation(e); 
@@ -489,7 +502,13 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
 
             const baseMarker = L.marker([surroundingBaseSchool.lat, surroundingBaseSchool.lng], { icon: baseIcon });
             if (!isBeneficiary) {
-                baseMarker.bindPopup(() => createPopupContent(surroundingBaseSchool), { closeButton: false, autoPan: false, offset: L.point(0, -5) });
+                baseMarker.bindPopup(() => createPopupContent(surroundingBaseSchool), { 
+                    closeButton: false, 
+                    autoPan: true, 
+                    autoPanPaddingTop: 100,
+                    autoPanPaddingLeft: 50,
+                    offset: L.point(-170, 150) 
+                });
             }
             baseMarker.addTo(markersGroup);
 
@@ -541,7 +560,13 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
 
                 const surrMarker = L.marker([s.lat, s.lng], { icon: surrIcon });
                 if (!isBeneficiary) {
-                    surrMarker.bindPopup(() => createPopupContent(s), { closeButton: false, autoPan: false, offset: L.point(0, -5) });
+                    surrMarker.bindPopup(() => createPopupContent(s), { 
+                        closeButton: false, 
+                        autoPan: true, 
+                        autoPanPaddingTop: 100,
+                        autoPanPaddingLeft: 50,
+                        offset: L.point(-170, 150) 
+                    });
                 }
                 surrMarker.addTo(markersGroup);
 
@@ -572,16 +597,70 @@ export const MapCanvas: React.FC<MapCanvasProps> = ({
         map.closePopup();
         
         if (!isBeneficiary) {
-            // Open the popup immediately without map movement or delays
-            L.popup({ closeButton: false, autoPan: false, offset: L.point(0, -15) })
+            // Open the popup on the left side
+            L.popup({ 
+                closeButton: false, 
+                autoPan: true, 
+                autoPanPaddingTop: 100,
+                autoPanPaddingLeft: 50,
+                offset: L.point(-170, 150) 
+            })
                 .setLatLng([selectedPlace.lat, selectedPlace.lng])
                 .setContent(createPopupContent(selectedPlace))
                 .openOn(map);
         }
+
+        // Auto-center with offset when a school is selected
+        // We move the map center such that the school is to the RIGHT and slightly DOWN
+        // This makes room for the popup on the LEFT and ensures the header doesn't cover it
+        const zoom = map.getZoom();
+        const targetZoom = zoom > 15 ? zoom : 16;
+        
+        // Vertical offset (to push school down)
+        const latOffset = 0.0005 / Math.pow(2, targetZoom - 13); 
+        // Horizontal offset (to push school right, making room for popup on left)
+        const lngOffset = -0.0025 / Math.pow(2, targetZoom - 13); 
+        
+        map.flyTo([selectedPlace.lat + latOffset, selectedPlace.lng + lngOffset], targetZoom, {
+            duration: 1.5,
+            easeLinearity: 0.25
+        });
     }, [selectedPlace, isBeneficiary]);
 
     return (
         <div className="relative h-full w-full bg-gray-100 overflow-hidden">
+            <style>{`
+                .leaflet-popup {
+                    scale: 1 !important;
+                    transition: none !important;
+                    margin-left: -20px !important; /* Slight nudge for better spacing */
+                }
+                .leaflet-popup-content-wrapper {
+                    border-radius: 20px !important;
+                    padding: 0 !important;
+                    overflow: hidden !important;
+                    box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.5) !important;
+                    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+                    background: white !important;
+                    width: 300px !important;
+                }
+                .leaflet-popup-content {
+                    margin: 0 !important;
+                    width: 300px !important;
+                    min-width: 300px !important;
+                }
+                .leaflet-popup-tip-container {
+                    display: none !important;
+                }
+                .custom-educational-popup {
+                    width: 100% !important;
+                    box-sizing: border-box !important;
+                }
+                /* Ensure Leaflet pan animation accounts for top header */
+                .leaflet-container {
+                    cursor: crosshair !important;
+                }
+            `}</style>
             {isLoading && (
                 <div className="absolute inset-0 bg-white/75 z-[2000] flex items-center justify-center backdrop-blur-md">
                     <div className="flex flex-col items-center gap-5 bg-white px-10 py-8 rounded-2xl shadow-2xl border border-primary-light/10 max-w-md w-full mx-4 text-center">

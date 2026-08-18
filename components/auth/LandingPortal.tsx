@@ -583,7 +583,7 @@ export const LandingPortal: React.FC<LandingPortalProps> = ({ onLoginSuccess }) 
           className="flex items-center gap-2 px-4 py-2 bg-slate-900/80 hover:bg-emerald-600 border border-slate-700 hover:border-emerald-500 rounded-full text-slate-300 hover:text-white text-xs font-bold transition-all shadow-lg backdrop-blur-md group"
         >
           <MessageSquare className="h-4 w-4 group-hover:scale-110 transition-transform" />
-          <span>للتواصل مع المبرمج</span>
+          <span>للملاحظات للتواصل مع المطور</span>
         </button>
       </div>
 

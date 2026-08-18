@@ -83,7 +83,7 @@ export const DeveloperContactModal: React.FC<DeveloperContactModalProps> = ({ is
               <MessageSquare className="h-6 w-6" />
             </div>
             <div>
-              <h2 className="text-xl font-bold leading-tight">للتواصل وإبداء الملاحظات</h2>
+              <h2 className="text-xl font-bold leading-tight">للملاحظات للتواصل مع المطور</h2>
               <p className="text-white/80 text-xs font-medium">يسعدنا استقبال ملاحظاتكم ومقترحاتكم والتواصل المباشر مع دعم النظام</p>
             </div>
           </div>
@@ -103,7 +103,7 @@ export const DeveloperContactModal: React.FC<DeveloperContactModalProps> = ({ is
                 <div className="bg-blue-100 p-1.5 rounded-lg text-blue-600">
                   <Code2 className="h-4 w-4" />
                 </div>
-                <h3 className="font-bold text-slate-800 text-sm">نبذة عن المبرمج ورقم التواصل</h3>
+                <h3 className="font-bold text-slate-800 text-sm">نبذة عن المطور ورقم التواصل</h3>
               </div>
               <span className="bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-md">مطور النظام</span>
             </div>
@@ -153,7 +153,7 @@ export const DeveloperContactModal: React.FC<DeveloperContactModalProps> = ({ is
                 <div className="bg-emerald-100 p-1.5 rounded-lg text-emerald-600">
                   <MessageSquare className="h-4 w-4" />
                 </div>
-                <h3 className="font-bold text-slate-800 text-sm">مربع لكتابة الملاحظات وإرسالها للمبرمج</h3>
+                <h3 className="font-bold text-slate-800 text-sm">مربع لكتابة الملاحظات وإرسالها للمطور</h3>
               </div>
               <div className="bg-orange-100 p-1.5 rounded-lg text-orange-600">
                 <Sparkles className="h-4 w-4" />
@@ -221,7 +221,7 @@ export const DeveloperContactModal: React.FC<DeveloperContactModalProps> = ({ is
                   {status === 'idle' && (
                     <>
                       <Send className="h-4 w-4" />
-                      إرسال الملاحظة للمبرمج
+                      إرسال الملاحظة للمطور
                     </>
                   )}
                   {status === 'sending' && (
