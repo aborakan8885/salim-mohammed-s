@@ -39,7 +39,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onOpenAuth }) => {
                         أنت الآن مسجل كمسؤول محلي. لكي تظهر الملفات التي ترفعها لجميع المستخدمين الآخرين، يجب تفعيل <strong>مزامنة Google السحابية</strong> ببريدك المعتمد.
                     </p>
                     <Button 
-                        onClick={() => { onClose(); onOpenAuth?.(); }}
+                        onClick={() => { onOpenAuth?.(); }}
                         className="bg-primary-light hover:bg-primary-medium text-primary-dark px-10 py-4 rounded-2xl shadow-lg flex items-center gap-3 font-extrabold transition-all"
                     >
                         <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-6 h-6" alt="Google" />

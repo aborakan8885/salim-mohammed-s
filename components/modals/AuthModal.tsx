@@ -24,6 +24,7 @@ const INITIAL_DEFAULT_USERS: User[] = [
     userType: 'employee',
     workEntity: 'الإدارة العامة للتعليم • المدينة المنورة',
     status: 'active',
+    email: 'aborakan8885@gmail.com',
     permissions: {
       visibleLayers: ['schools', 'kmz'],
       canViewCoordinates: true,
@@ -76,6 +77,12 @@ export const saveMockUsers = (users: User[]) => {
 };
 
 const MOCK_CIVIL_ID_DATABASE: Record<string, { name: string; workEntity: string; jobTitle: string; phone: string }> = {
+  '1068575628': {
+    name: 'مدير النظام الرئيسي',
+    workEntity: 'الإدارة العامة للتعليم • المدينة المنورة',
+    jobTitle: 'مسؤول النظام الرئيسي',
+    phone: '05xxxxxxxx'
+  },
   '1098765432': {
     name: 'عبدالرحمن بن محمد الغامدي',
     workEntity: 'الشؤون التعليمية • وحدة القبول',
@@ -112,11 +119,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onLoginSuccess })
         // Map Firebase user to App User
         const appUser: User = {
             id: user.uid,
-            name: user.displayName || 'مستخدم Google',
+            name: user.displayName || 'مدير النظام الرئيسي',
             role: user.email === 'aborakan8885@gmail.com' ? 'admin' : 'user',
             userType: 'employee',
-            workEntity: user.email === 'aborakan8885@gmail.com' ? 'إدارة النظام السحابية' : 'مستخدم خارجي',
+            workEntity: user.email === 'aborakan8885@gmail.com' ? 'الإدارة العامة للتعليم' : 'مستخدم خارجي',
             status: 'active',
+            email: user.email || undefined,
             permissions: {
                 visibleLayers: ['schools', 'kmz'],
                 canViewCoordinates: user.email === 'aborakan8885@gmail.com',
@@ -125,6 +133,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onLoginSuccess })
             }
         };
         
+        // Save to localStorage immediately to prevent race conditions with auth listener
+        localStorage.setItem('educational_map_current_user', JSON.stringify(appUser));
         onLoginSuccess(appUser);
     } catch (err: any) {
         console.error("Google login error:", err);

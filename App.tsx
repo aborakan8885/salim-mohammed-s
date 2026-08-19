@@ -1549,11 +1549,19 @@ function AppContent() {
         setCurrentUser(appUser);
         localStorage.setItem('educational_map_current_user', JSON.stringify(appUser));
       } else {
-        // Only clear if it was a Firebase user
-        const savedUser = localStorage.getItem('educational_map_current_user');
-        if (savedUser && JSON.parse(savedUser).id.length > 20) { // Firebase UIDs are long
-            setCurrentUser(null);
-            localStorage.removeItem('educational_map_current_user');
+        // IMPROVED LOGIC: Only clear if it was a Firebase user (UID > 20 chars)
+        // This prevents kicking out local users when Firebase auth isn't yet initialized or is in transition
+        const savedUserStr = localStorage.getItem('educational_map_current_user');
+        if (savedUserStr) {
+          try {
+            const savedUser = JSON.parse(savedUserStr);
+            if (savedUser && savedUser.id && savedUser.id.length > 20) {
+              setCurrentUser(null);
+              localStorage.removeItem('educational_map_current_user');
+            }
+          } catch (e) {
+            console.error("Auth sync error:", e);
+          }
         }
       }
     });

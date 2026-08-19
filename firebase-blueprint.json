@@ -1,31 +1,26 @@
 {
-  "entities": {
-    "FileMapping": {
-      "title": "File Mapping",
-      "description": "Represents an uploaded data file (tabular or spatial) and its mappings.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "filename": { "type": "string" },
-        "category": { "type": "string" },
-        "fileType": { "type": "string" },
-        "latColumn": { "type": "string" },
-        "lngColumn": { "type": "string" },
-        "nameColumn": { "type": "string" },
-        "displayColumns": { "type": "array" },
-        "data": { "type": "array" },
-        "headers": { "type": "array" },
-        "isBoundaryLayer": { "type": "boolean" },
-        "fileContent": { "type": "string", "description": "Base64 encoded content for KMZ or raw string for KML" },
-        "filterMappings": { "type": "object" }
-      },
-      "required": ["id", "filename", "category", "fileType"]
-    }
-  },
-  "firestore": {
-    "/files/{fileId}": {
-      "schema": "FileMapping",
-      "description": "Collection of uploaded data files and boundary layers."
+  "collections": {
+    "users": {
+      "documents": {
+        "admin-main": {
+          "civilId": "1068575628",
+          "email": "aborakan8885@gmail.com",
+          "role": "admin",
+          "name": "مدير النظام الرئيسي",
+          "status": "active"
+        }
+      }
+    },
+    "files": {
+      "documents": {}
+    },
+    "app_config": {
+      "documents": {
+        "settings": {
+          "allow_registration": true,
+          "maintenance_mode": false
+        }
+      }
     }
   }
 }

@@ -1,51 +1,42 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Reusable helpers
-    function isSignedIn() {
-      return request.auth != null;
-    }
-    
+    // Helper function to check if the user is an admin
     function isAdmin() {
-      return isSignedIn() && request.auth.token.email == "aborakan8885@gmail.com";
+      return request.auth != null && 
+             request.auth.token.email == 'aborakan8885@gmail.com';
     }
 
-    function isValidId(id) {
-      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
-    }
-
-    function isValidFile(data) {
-      return data.id is string && 
-             data.filename is string && data.filename.size() <= 255 &&
-             data.category is string &&
-             data.fileType is string;
-    }
-
-    // Default deny
+    // Global Admin Access
     match /{document=**} {
-      allow read, write: if false;
+      allow read, write: if isAdmin();
     }
 
-    // Files collection
+    // Publicly readable map data (Files and their data rows)
     match /files/{fileId} {
-      allow read: if true; // Public read for map display
+      allow read: if true;
       
-      allow create: if isAdmin() && 
-                      isValidId(fileId) && 
-                      isValidFile(request.resource.data) &&
-                      request.resource.data.id == fileId;
-                      
-      allow update: if isAdmin() && 
-                      isValidFile(request.resource.data) &&
-                      request.resource.data.id == resource.data.id; // ID is immutable
-                      
-      allow delete: if isAdmin();
-
-      // Rows sub-collection for tabular data
       match /rows/{rowId} {
         allow read: if true;
-        allow write: if isAdmin();
       }
+    }
+
+    // Feedback/Contact messages
+    match /feedbacks/{feedbackId} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
+    }
+
+    // User metadata (Private)
+    match /users/{userId} {
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Application Configuration
+    match /app_config/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
     }
   }
 }

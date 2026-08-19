@@ -10,7 +10,7 @@ export const AccountSettings: React.FC = () => {
     const [status, setStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
 
     useEffect(() => {
-        const savedUser = localStorage.getItem('currentUser');
+        const savedUser = localStorage.getItem('educational_map_current_user');
         if (savedUser) {
             const parsed = JSON.parse(savedUser);
             setCurrentUser(parsed);
@@ -25,28 +25,42 @@ export const AccountSettings: React.FC = () => {
         }
 
         try {
-            const savedUser = localStorage.getItem('currentUser');
-            if (savedUser) {
-                const user = JSON.parse(savedUser);
+            const savedUserStr = localStorage.getItem('educational_map_current_user');
+            if (savedUserStr) {
+                const user = JSON.parse(savedUserStr);
                 const updatedUser = {
                     ...user,
                     email: email,
                     password: newPassword || user.password
                 };
                 
-                localStorage.setItem('currentUser', JSON.stringify(updatedUser));
-                setCurrentUser(updatedUser);
+                // Update the session user
+                localStorage.setItem('educational_map_current_user', JSON.stringify(updatedUser));
                 
+                // Also update the Mock Users database so the login works next time
+                const MOCK_USERS_KEY = 'educational_map_users';
+                const usersJson = localStorage.getItem(MOCK_USERS_KEY);
+                if (usersJson) {
+                    const users = JSON.parse(usersJson);
+                    const idx = users.findIndex((u: any) => u.civilId === updatedUser.civilId);
+                    if (idx !== -1) {
+                        users[idx] = { ...users[idx], email: email, password: newPassword || users[idx].password };
+                        localStorage.setItem(MOCK_USERS_KEY, JSON.stringify(users));
+                    }
+                }
+
+                setCurrentUser(updatedUser);
                 setStatus({ type: 'success', message: 'تم تحديث بيانات الحساب بنجاح' });
                 setNewPassword('');
                 setConfirmPassword('');
                 
-                // Force a page refresh to apply changes globally if needed
+                // Force a page refresh to apply changes globally
                 setTimeout(() => {
                     window.location.reload();
                 }, 1500);
             }
         } catch (error) {
+            console.error("Save account error:", error);
             setStatus({ type: 'error', message: 'حدث خطأ أثناء حفظ البيانات' });
         }
     };
