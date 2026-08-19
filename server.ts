@@ -44,7 +44,8 @@ async function initDB() {
 }
 
 async function startServer() {
-  console.log(">>> [SERVER] Starting initialization in LOCAL MODE...");
+  const isProd = process.env.NODE_ENV === "production" || process.env.NODE_ENV === "PROD";
+  console.log(`>>> [SERVER] Starting initialization in ${isProd ? 'PRODUCTION' : 'LOCAL'} MODE...`);
   await initDB();
   
   app.use(cors());
@@ -213,8 +214,6 @@ async function startServer() {
   });
 
   // --- APP SERVING ---
-  const isProd = process.env.NODE_ENV === "production" || process.env.NODE_ENV === "PROD";
-  
   if (!isProd) {
     console.log(">>> [SERVER] Mode: DEVELOPMENT (Vite Middleware)");
     const { createServer: createViteServer } = await import("vite");
@@ -232,7 +231,7 @@ async function startServer() {
         index: false // We handle index.html manually to ensure SPA fallback
     }));
     
-    app.get("*", (req, res) => {
+    app.get("*all", (req, res) => {
         // Don't serve index.html for missing assets to avoid SyntaxError in browser
         if (req.path.startsWith('/assets/') || req.path.includes('.')) {
             return res.status(404).send('Not found');
@@ -240,6 +239,22 @@ async function startServer() {
         res.sendFile(path.join(distPath, "index.html"));
     });
   }
+
+  // --- ERROR HANDLING & 404 ---
+  
+  // Custom 404 for API routes
+  app.use("/api/*all", (req, res) => {
+    res.status(404).json({ error: `API route not found: ${req.method} ${req.originalUrl}` });
+  });
+
+  // Global Error Handler
+  app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    console.error(">>> [SERVER ERROR]:", err);
+    res.status(err.status || 500).json({ 
+      error: err.message || "Internal Server Error",
+      stack: isProd ? undefined : err.stack 
+    });
+  });
 
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`>>> [SERVER] SUCCESS: Local DB Mode running at http://localhost:${PORT}`);
