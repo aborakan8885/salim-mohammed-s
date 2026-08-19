@@ -7,7 +7,10 @@ import UserManagement from './UserManagement';
 import FeedbackManagement from './FeedbackManagement';
 import { AccountSettings } from './AccountSettings';
 import { auth } from '../../lib/firebase';
+import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { Button } from '../ui/Button';
+import type { User } from '../../types';
+import { Loader2, AlertCircle } from 'lucide-react';
 
 interface AdminPanelProps {
   onClose: () => void;
@@ -19,6 +22,8 @@ type AdminTab = 'upload' | 'manage' | 'users' | 'feedback' | 'account';
 const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onOpenAuth }) => {
     const [activeTab, setActiveTab] = useState<AdminTab>('upload');
     const [isFirebaseAuthed, setIsFirebaseAuthed] = useState<boolean>(!!auth.currentUser);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const unsub = auth.onAuthStateChanged((user) => {
@@ -27,23 +32,71 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onOpenAuth }) => {
         return () => unsub();
     }, []);
 
+    const handleGoogleSync = async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            const provider = new GoogleAuthProvider();
+            const result = await signInWithPopup(auth, provider);
+            const user = result.user;
+            
+            // Map Firebase user to App User
+            const appUser: User = {
+                id: user.uid,
+                name: user.displayName || 'مدير النظام الرئيسي',
+                role: user.email === 'aborakan8885@gmail.com' ? 'admin' : 'user',
+                userType: 'employee',
+                workEntity: user.email === 'aborakan8885@gmail.com' ? 'الإدارة العامة للتعليم' : 'مستخدم خارجي',
+                status: 'active',
+                email: user.email || undefined,
+                permissions: {
+                    visibleLayers: ['schools', 'kmz'],
+                    canViewCoordinates: user.email === 'aborakan8885@gmail.com',
+                    canExportReports: true,
+                    canUseSurroundingAnalysis: true
+                }
+            };
+            
+            localStorage.setItem('educational_map_current_user', JSON.stringify(appUser));
+            // Auth change will trigger re-render via useEffect unsub
+        } catch (err: any) {
+            console.error("Sync error:", err);
+            setError('فشل الاتصال بالسحابة. يرجى المحاولة مرة أخرى.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     const renderContent = () => {
         if (!isFirebaseAuthed) {
             return (
-                <div className="flex flex-col items-center justify-center h-full p-12 text-center bg-white rounded-xl">
-                    <div className="w-20 h-20 bg-primary-light/10 rounded-full flex items-center justify-center mb-6 border-4 border-primary-light/20">
-                        <UploadCloud className="h-10 w-10 text-primary-dark" />
+                <div className="flex flex-col items-center justify-center h-full p-12 text-center bg-white rounded-xl shadow-inner border-2 border-dashed border-gray-100">
+                    <div className="w-24 h-24 bg-primary-light/10 rounded-3xl flex items-center justify-center mb-8 border-4 border-primary-light/20 shadow-lg shadow-primary-light/5">
+                        <UploadCloud className="h-12 w-12 text-primary-dark" />
                     </div>
-                    <h3 className="text-xl font-bold text-gray-800 mb-2">تفعيل المزامنة السحابية</h3>
-                    <p className="text-gray-600 max-w-md mx-auto mb-8 text-sm leading-relaxed">
+                    <h3 className="text-2xl font-black text-gray-900 mb-4">تفعيل المزامنة السحابية</h3>
+                    <p className="text-gray-600 max-w-md mx-auto mb-10 text-sm leading-relaxed font-medium">
                         أنت الآن مسجل كمسؤول محلي. لكي تظهر الملفات التي ترفعها لجميع المستخدمين الآخرين، يجب تفعيل <strong>مزامنة Google السحابية</strong> ببريدك المعتمد.
                     </p>
+
+                    {error && (
+                        <div className="mb-6 p-4 bg-red-50 border border-red-100 text-red-700 rounded-xl text-xs font-bold flex items-center justify-center gap-2">
+                            <AlertCircle className="h-4 w-4" />
+                            <span>{error}</span>
+                        </div>
+                    )}
+
                     <Button 
-                        onClick={() => { onOpenAuth?.(); }}
-                        className="bg-primary-light hover:bg-primary-medium text-primary-dark px-10 py-4 rounded-2xl shadow-lg flex items-center gap-3 font-extrabold transition-all"
+                        onClick={handleGoogleSync}
+                        disabled={isLoading}
+                        className="bg-primary-dark hover:bg-primary-medium text-white px-12 py-5 rounded-2xl shadow-xl flex items-center gap-4 font-extrabold transition-all text-lg min-w-[280px]"
                     >
-                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-6 h-6" alt="Google" />
-                        تفعيل المزامنة مع السحابة (Google)
+                        {isLoading ? (
+                            <Loader2 className="h-6 w-6 animate-spin" />
+                        ) : (
+                            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-7 h-7" alt="Google" />
+                        )}
+                        <span>{isLoading ? 'جاري الاتصال...' : 'تفعيل المزامنة مع السحابة'}</span>
                     </Button>
                 </div>
             );
