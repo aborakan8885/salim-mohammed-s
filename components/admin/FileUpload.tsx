@@ -111,14 +111,6 @@ const FileUpload: React.FC = () => {
                 fileMapping.fileContent = await readFileAsArrayBuffer(file);
             }
             
-            // Check approximate size for Firestore 1MB limit
-            const jsonSize = JSON.stringify(fileMapping).length;
-            if (jsonSize > 1000000) {
-                setStatus('error');
-                setMessage('⚠️ حجم بيانات الملف كبير جداً بالنسبة لقاعدة البيانات السحابية (أكثر من 1 ميجابايت). يرجى تقليل عدد الأعمدة غير الضرورية في ملف الإكسيل أو تقسيم الملف إلى أجزاء أصغر.');
-                return;
-            }
-
             const existingFiles = await getAllFiles();
             const shouldBeBoundary = isSpatial;
 

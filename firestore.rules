@@ -40,6 +40,12 @@ service cloud.firestore {
                       request.resource.data.id == resource.data.id; // ID is immutable
                       
       allow delete: if isAdmin();
+
+      // Rows sub-collection for tabular data
+      match /rows/{rowId} {
+        allow read: if true;
+        allow write: if isAdmin();
+      }
     }
   }
 }
