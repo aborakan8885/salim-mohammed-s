@@ -1528,6 +1528,38 @@ function AppContent() {
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
+  useEffect(() => {
+    // Listen for Firebase Auth changes to sync with App state
+    const unsubscribe = auth.onAuthStateChanged((user) => {
+      if (user) {
+        const appUser: User = {
+          id: user.uid,
+          name: user.displayName || 'مسؤول النظام',
+          role: user.email === 'aborakan8885@gmail.com' ? 'admin' : 'user',
+          userType: 'employee',
+          workEntity: user.email === 'aborakan8885@gmail.com' ? 'إدارة النظام السحابية' : 'مستخدم خارجي',
+          status: 'active',
+          permissions: {
+            visibleLayers: ['schools', 'kmz'],
+            canViewCoordinates: user.email === 'aborakan8885@gmail.com',
+            canExportReports: true,
+            canUseSurroundingAnalysis: true
+          }
+        };
+        setCurrentUser(appUser);
+        localStorage.setItem('educational_map_current_user', JSON.stringify(appUser));
+      } else {
+        // Only clear if it was a Firebase user
+        const savedUser = localStorage.getItem('educational_map_current_user');
+        if (savedUser && JSON.parse(savedUser).id.length > 20) { // Firebase UIDs are long
+            setCurrentUser(null);
+            localStorage.removeItem('educational_map_current_user');
+        }
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
   const { allPlaces, fileMappings, isLoading: isDataLoading } = useData();
 
   // --- طبقة المدارس المحيطة ---
@@ -1777,7 +1809,12 @@ function AppContent() {
           </div>
         </main>
         {isAuthModalOpen && <AuthModal onClose={() => setAuthModalOpen(false)} onLoginSuccess={(u) => { setCurrentUser(u); setAuthModalOpen(false); }} />}
-        {isAdminPanelOpen && <AdminPanel onClose={() => setIsAdminPanelOpen(false)} />}
+        {isAdminPanelOpen && (
+          <AdminPanel 
+            onClose={() => setIsAdminPanelOpen(false)} 
+            onOpenAuth={() => setAuthModalOpen(true)}
+          />
+        )}
         {isReportsPanelOpen && <ReportsPanel onClose={() => setIsReportsPanelOpen(false)} allPlaces={allPlaces} fileMappings={fileMappings} visibleCategories={visibleCategories} filters={filters} />}
         {isPrintModalOpen && (
           <PrintReportModal 

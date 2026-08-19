@@ -384,64 +384,76 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onLoginSuccess })
             <>
               {/* LOGIN MODE */}
               {employeeMode === 'login' && (
-                <form onSubmit={handleEmployeeLogin} className="space-y-4">
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">رقم السجل المدني (المستخدم)</label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        value={civilIdLogin}
-                        onChange={e => setCivilIdLogin(e.target.value)}
-                        placeholder="أدخل 10 أرقام السجل المدني..."
-                        className="w-full pl-3 pr-10 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-light focus:outline-none text-sm font-semibold"
-                        required
-                      />
-                      <UserIcon className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    </div>
+                <div className="space-y-6">
+                  {/* Administrative Notice */}
+                  <div className="p-4 bg-primary-light/5 border border-primary-light/20 rounded-2xl text-center">
+                    <p className="text-sm font-bold text-primary-dark mb-2">تنبيه لمسؤول النظام:</p>
+                    <p className="text-xs text-gray-600 leading-relaxed">
+                        لضمان <strong>مزامنة المدارس والحدود</strong> مع جميع المستخدمين، يجب استخدام الدخول عبر Google ببريدك المعتمد.
+                    </p>
                   </div>
 
-                  <div>
-                    <label className="block text-xs font-bold text-gray-700 mb-1">كلمة المرور</label>
-                    <div className="relative">
-                      <input
-                        type="password"
-                        value={passwordLogin}
-                        onChange={e => setPasswordLogin(e.target.value)}
-                        placeholder="••••••••"
-                        className="w-full pl-3 pr-10 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-light focus:outline-none text-sm"
-                        required
-                      />
-                      <KeyRound className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    </div>
-                  </div>
-
-                  <Button type="submit" className="w-full py-3 bg-primary-dark hover:bg-primary-medium text-white font-bold rounded-xl shadow-md">
-                    <LogIn className="h-4 w-4 ml-2" />
-                    تسجيل دخول موظف
-                  </Button>
-
-                  <div className="relative my-4">
-                    <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-gray-300"></div>
-                    </div>
-                    <div className="relative flex justify-center text-xs uppercase">
-                      <span className="bg-white px-2 text-gray-500 font-bold">أو الدخول عبر Google</span>
-                    </div>
-                  </div>
-
+                  {/* Primary Action: Google Login */}
                   <Button 
                     type="button" 
                     onClick={handleGoogleLogin} 
                     disabled={isLoading}
-                    className="w-full py-3 bg-white border-2 border-gray-200 hover:bg-gray-50 text-gray-700 font-bold rounded-xl shadow-sm flex items-center justify-center gap-3 transition-all"
+                    className="w-full py-4 bg-white border-2 border-primary-light/30 hover:border-primary-light hover:bg-primary-light/5 text-primary-dark font-extrabold rounded-2xl shadow-sm flex items-center justify-center gap-4 transition-all text-base"
                   >
                     {isLoading ? (
-                        <Loader2 className="h-5 w-5 animate-spin text-primary-dark" />
+                        <Loader2 className="h-6 w-6 animate-spin text-primary-dark" />
                     ) : (
-                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5" alt="Google" />
+                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-6 h-6" alt="Google" />
                     )}
-                    <span>تسجيل الدخول باستخدام Google</span>
+                    <span>تسجيل الدخول الرسمي (Google)</span>
                   </Button>
+
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-gray-200"></div>
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-white px-3 text-gray-400 font-bold tracking-widest">أو الدخول التقليدي</span>
+                    </div>
+                  </div>
+
+                  {/* Secondary Action: Traditional Login */}
+                  <form onSubmit={handleEmployeeLogin} className="space-y-4 opacity-70 focus-within:opacity-100 transition-opacity">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">رقم السجل المدني (المستخدم)</label>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={civilIdLogin}
+                          onChange={e => setCivilIdLogin(e.target.value)}
+                          placeholder="أدخل 10 أرقام السجل المدني..."
+                          className="w-full pl-3 pr-10 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-light focus:outline-none text-sm font-semibold"
+                          required
+                        />
+                        <UserIcon className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-gray-700 mb-1">كلمة المرور</label>
+                      <div className="relative">
+                        <input
+                          type="password"
+                          value={passwordLogin}
+                          onChange={e => setPasswordLogin(e.target.value)}
+                          placeholder="••••••••"
+                          className="w-full pl-3 pr-10 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-light focus:outline-none text-sm"
+                          required
+                        />
+                        <KeyRound className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                      </div>
+                    </div>
+
+                    <Button type="submit" className="w-full py-3 bg-primary-dark hover:bg-primary-medium text-white font-bold rounded-xl shadow-md">
+                      <LogIn className="h-4 w-4 ml-2" />
+                      تسجيل دخول موظف
+                    </Button>
+                  </form>
 
                   <div className="pt-3 border-t text-center">
                     <button
@@ -452,7 +464,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onLoginSuccess })
                       <span>ليس لديك حساب؟ تفعيل تسجيل حساب موظف جديد</span>
                     </button>
                   </div>
-                </form>
+                </div>
               )}
 
               {/* REGISTER STEP 1: Enter Civil ID */}

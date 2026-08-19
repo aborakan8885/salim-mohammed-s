@@ -1,21 +1,53 @@
-import React, { useState } from 'react';
-import { X, UploadCloud, List, Users, MessageSquare } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, UploadCloud, List, Users, MessageSquare, ShieldAlert, LogIn } from 'lucide-react';
 import { Card } from '../ui/Card';
 import FileUpload from './FileUpload';
 import FileManagement from './FileManagement';
 import UserManagement from './UserManagement';
 import FeedbackManagement from './FeedbackManagement';
+import { auth } from '../../lib/firebase';
+import { Button } from '../ui/Button';
 
 interface AdminPanelProps {
   onClose: () => void;
+  onOpenAuth?: () => void;
 }
 
 type AdminTab = 'upload' | 'manage' | 'users' | 'feedback';
 
-const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
+const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onOpenAuth }) => {
     const [activeTab, setActiveTab] = useState<AdminTab>('upload');
+    const [isFirebaseAuthed, setIsFirebaseAuthed] = useState<boolean>(!!auth.currentUser);
+
+    useEffect(() => {
+        const unsub = auth.onAuthStateChanged((user) => {
+            setIsFirebaseAuthed(!!user);
+        });
+        return () => unsub();
+    }, []);
 
     const renderContent = () => {
+        if (!isFirebaseAuthed) {
+            return (
+                <div className="flex flex-col items-center justify-center h-full p-12 text-center bg-white rounded-xl">
+                    <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center mb-6 border-4 border-amber-100">
+                        <ShieldAlert className="h-10 w-10 text-amber-500" />
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-800 mb-2">مطلوب مصادقة سحابية</h3>
+                    <p className="text-gray-600 max-w-md mx-auto mb-8 text-sm leading-relaxed">
+                        عذراً، للوصول إلى أدوات الرفع والإدارة المتقدمة وضمان مزامنة البيانات مع بقية المستخدمين، يجب تسجيل الدخول باستخدام <strong>حساب Google المعتمد</strong>.
+                    </p>
+                    <Button 
+                        onClick={() => { onClose(); onOpenAuth?.(); }}
+                        className="bg-primary-dark hover:bg-primary-medium text-white px-8 py-3 rounded-2xl shadow-lg flex items-center gap-2 font-bold transition-all"
+                    >
+                        <LogIn className="h-5 w-5" />
+                        الذهاب لتسجيل الدخول السحابي
+                    </Button>
+                </div>
+            );
+        }
+
         switch (activeTab) {
             case 'upload':
                 return <FileUpload />;
