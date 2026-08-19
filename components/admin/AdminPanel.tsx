@@ -55,15 +55,27 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onOpenAuth }) => {
         });
 
         if (!response.ok) {
-          const err = await response.json();
-          throw new Error(err.error || 'فشل التحقق من الهوية');
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            const err = await response.json();
+            throw new Error(err.error || 'فشل التحقق من الهوية');
+          } else {
+            // Handle HTML/Text error pages
+            const text = await response.text();
+            console.error("Non-JSON Auth Error:", text);
+            throw new Error(`خطأ في الخادم (${response.status}). يرجى المحاولة لاحقاً.`);
+          }
         }
 
-        const { token } = await response.json();
+        const result = await response.json();
+        const { token, bypass } = result;
         
-        // Sign in with Firebase Custom Token
-        // This is the "Hardcoded User" solution - the server grants access based on the ID
-        await signInWithCustomToken(auth, token);
+        if (token) {
+          // Sign in with Firebase Custom Token
+          await signInWithCustomToken(auth, token);
+        } else if (bypass) {
+          console.info("Signed in via bypass mode (No Firebase Token)");
+        }
         
         localStorage.setItem('educational_map_bypass_secret', civilId);
         
