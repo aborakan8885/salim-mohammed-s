@@ -2,7 +2,6 @@ import express from "express";
 import path from "path";
 import cors from "cors";
 import fs from "fs/promises";
-import { createServer as createViteServer } from "vite";
 
 import multer from "multer";
 
@@ -51,6 +50,9 @@ async function startServer() {
   app.use(cors());
   app.use(express.json({ limit: '100mb' }));
   app.use(express.urlencoded({ limit: '100mb', extended: true }));
+
+  // --- HEALTH CHECK ---
+  app.get("/api/health", (req, res) => res.json({ status: "ok", mode: isProd ? "production" : "development" }));
 
   // --- DIAGNOSTIC LOGGING ---
   app.use((req, res, next) => {
@@ -211,16 +213,32 @@ async function startServer() {
   });
 
   // --- APP SERVING ---
-  if (process.env.NODE_ENV !== "production") {
+  const isProd = process.env.NODE_ENV === "production" || process.env.NODE_ENV === "PROD";
+  
+  if (!isProd) {
+    console.log(">>> [SERVER] Mode: DEVELOPMENT (Vite Middleware)");
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true, hmr: false },
       appType: "spa",
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*all", (req, res) => res.sendFile(path.join(distPath, "index.html")));
+    const distPath = path.resolve(process.cwd(), "dist");
+    console.log(`>>> [SERVER] Mode: PRODUCTION (Static Serving)`);
+    console.log(`>>> [SERVER] Serving assets from: ${distPath}`);
+    
+    app.use(express.static(distPath, {
+        index: false // We handle index.html manually to ensure SPA fallback
+    }));
+    
+    app.get("*", (req, res) => {
+        // Don't serve index.html for missing assets to avoid SyntaxError in browser
+        if (req.path.startsWith('/assets/') || req.path.includes('.')) {
+            return res.status(404).send('Not found');
+        }
+        res.sendFile(path.join(distPath, "index.html"));
+    });
   }
 
   app.listen(PORT, "0.0.0.0", () => {
