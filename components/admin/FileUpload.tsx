@@ -86,12 +86,24 @@ const FileUpload: React.FC = () => {
                 const workbook = window.XLSX.read(buffer, { type: 'buffer' });
                 const sheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[sheetName];
-                const data = window.XLSX.utils.sheet_to_json(worksheet, { defval: "" }); // Use defval to handle empty cells gracefully
+                const rawData = window.XLSX.utils.sheet_to_json(worksheet, { defval: "" });
                 
-                fileMapping.data = data;
-                const headers = data.length > 0 ? Object.keys(data[0]) : [];
+                // Clean data to minimize size
+                const cleanData = rawData.map((row: any) => {
+                    const cleanRow: any = {};
+                    Object.keys(row).forEach(key => {
+                        const val = row[key];
+                        // Only keep non-empty fields to save space
+                        if (val !== "" && val !== null && val !== undefined) {
+                            cleanRow[key] = val;
+                        }
+                    });
+                    return cleanRow;
+                });
+
+                fileMapping.data = cleanData;
+                const headers = cleanData.length > 0 ? Object.keys(cleanData[0]) : [];
                 fileMapping.headers = headers;
-                // FIX: Default display columns to all headers so data shows up immediately
                 fileMapping.displayColumns = headers;
             } else if (fileType === 'kml' || fileType === 'geojson') {
                 fileMapping.fileContent = await file.text();
@@ -99,7 +111,14 @@ const FileUpload: React.FC = () => {
                 fileMapping.fileContent = await readFileAsArrayBuffer(file);
             }
             
-            // When uploading a spatial file, set it as the active boundary layer and unmark other files
+            // Check approximate size for Firestore 1MB limit
+            const jsonSize = JSON.stringify(fileMapping).length;
+            if (jsonSize > 1000000) {
+                setStatus('error');
+                setMessage('⚠️ حجم بيانات الملف كبير جداً بالنسبة لقاعدة البيانات السحابية (أكثر من 1 ميجابايت). يرجى تقليل عدد الأعمدة غير الضرورية في ملف الإكسيل أو تقسيم الملف إلى أجزاء أصغر.');
+                return;
+            }
+
             const existingFiles = await getAllFiles();
             const shouldBeBoundary = isSpatial;
 
@@ -122,15 +141,19 @@ const FileUpload: React.FC = () => {
             };
 
             await putFile(finalMapping);
-            await loadMapData(); // Refresh data context
+            await loadMapData();
 
             setStatus('success');
-            setMessage(`تم رفع الملف "${file.name}" بنجاح.${isSpatial ? ' تم تحديث الخارطة بالملف المكاني.' : ' يرجى الانتقال إلى قسم الإدارة لربطه بفئة.'}`);
-            setFile(null); // Clear file input after success
-        } catch (error) {
+            setMessage(`تم رفع الملف "${file.name}" بنجاح.`);
+            setFile(null);
+        } catch (error: any) {
             console.error("File upload failed:", error);
             setStatus('error');
-            setMessage('حدث خطأ أثناء رفع الملف. الرجاء المحاولة مرة أخرى.');
+            if (error.code === 'permission-denied') {
+                setMessage('❌ عذراً، لا تملك صلاحية الرفع. يرجى التأكد من تسجيل الدخول عبر Google ببريدك الإلكتروني المعتمد كمسؤول.');
+            } else {
+                setMessage(`حدث خطأ أثناء الرفع: ${error.message || 'خطأ غير معروف'}. يرجى المحاولة مرة أخرى.`);
+            }
         }
     };
 
