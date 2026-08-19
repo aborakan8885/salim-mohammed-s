@@ -1,199 +1,152 @@
 import express from "express";
 import path from "path";
 import cors from "cors";
+import fs from "fs/promises";
 import { createServer as createViteServer } from "vite";
-import { initializeApp, getApps, getApp } from "firebase-admin/app";
-import { getFirestore, FieldValue } from "firebase-admin/firestore";
-import { getAuth } from "firebase-admin/auth";
-import fs from "fs";
 
-// Read config manually
-const firebaseConfig = JSON.parse(fs.readFileSync("./firebase-applet-config.json", "utf-8"));
+const app = express();
+const PORT = 3000;
+
+// Local DB Paths
+const DB_DIR = path.join(process.cwd(), "data");
+const FILES_DB = path.join(DB_DIR, "files.json");
+const FEEDBACK_DB = path.join(DB_DIR, "feedback.json");
+
+async function initDB() {
+  try {
+    await fs.mkdir(DB_DIR, { recursive: true });
+    try { await fs.access(FILES_DB); } catch { await fs.writeFile(FILES_DB, "[]"); }
+    try { await fs.access(FEEDBACK_DB); } catch { await fs.writeFile(FEEDBACK_DB, "[]"); }
+    console.log(">>> [LOCAL DB] Initialized successfully.");
+  } catch (err) {
+    console.error(">>> [LOCAL DB] Init failed:", err);
+  }
+}
 
 async function startServer() {
-  console.log(">>> [SERVER] Starting initialization...");
-  const app = express();
-  const PORT = 3000;
+  console.log(">>> [SERVER] Starting initialization in LOCAL MODE...");
+  await initDB();
+  
+  app.use(cors());
+  app.use(express.json({ limit: '100mb' }));
+  app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
-  try {
-    console.log(">>> [FIREBASE] Initializing Admin SDK for project:", firebaseConfig.projectId);
-    
-    let firestore: any;
+  // --- DIAGNOSTIC LOGGING ---
+  app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    if (req.method === 'OPTIONS') return res.sendStatus(204);
+    next();
+  });
+
+  // --- LOCAL AUTH API ---
+  app.post("/api/admin/login", (req, res) => {
+    const { secret } = req.body;
+    if (secret === "1068575628") {
+      return res.json({ 
+        success: true, 
+        bypass: true, 
+        user: { 
+          id: 'admin-local', 
+          role: 'admin', 
+          email: 'aborakan8885@gmail.com' 
+        } 
+      });
+    }
+    res.status(403).json({ error: "Unauthorized" });
+  });
+
+  // --- LOCAL FILES API ---
+  app.get("/api/files", async (req, res) => {
+    try {
+      const data = await fs.readFile(FILES_DB, "utf-8");
+      res.json(JSON.parse(data));
+    } catch (e) {
+      res.status(500).json({ error: "Failed to load files" });
+    }
+  });
+
+  app.post("/api/admin/sync-data", async (req, res) => {
+    const { secret, type, file } = req.body;
+    if (secret !== "1068575628") return res.status(403).json({ error: "Unauthorized" });
 
     try {
-      if (getApps().length === 0) {
-        initializeApp({
-          projectId: firebaseConfig.projectId
-        });
-        console.log(">>> [FIREBASE] Admin SDK initialized.");
-      }
-      
-      // Get firestore instance for the specific database ID
-      firestore = getFirestore(firebaseConfig.firestoreDatabaseId);
-    } catch (firebaseError) {
-      console.warn(">>> [FIREBASE] WARNING: Could not initialize Admin. Admin APIs will be disabled.", firebaseError);
-    }
-
-    app.use(cors());
-    app.use(express.json({ limit: '100mb' }));
-    app.use(express.urlencoded({ limit: '100mb', extended: true }));
-
-    // --- DIAGNOSTIC LOGGING ---
-    app.use((req, res, next) => {
-      // Explicit CORS for all /api routes
-      res.header('Access-Control-Allow-Origin', '*');
-      res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
-      res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-      
-      if (req.url.startsWith('/api')) {
-        console.log(`>>> [API] ${req.method} ${req.url}`);
-      }
-      
-      if (req.method === 'OPTIONS') {
-        return res.sendStatus(204);
-      }
-      next();
-    });
-
-    // API Health
-    app.all("/api/health", (req, res) => {
-      res.json({ status: "ok", project: firebaseConfig.projectId, method: req.method });
-    });
-
-    // Admin Login via Civil ID -> Returns Firebase Custom Token (if possible)
-    app.all("/api/admin/login", async (req, res) => {
-      if (req.method !== 'POST') {
-        return res.status(405).json({ error: "Method Not Allowed. Please use POST." });
-      }
-
-      const { secret } = req.body;
-      if (secret !== "1068575628") return res.status(403).json({ error: "Unauthorized" });
-
-      // ULTRA-RESILIENT BYPASS: 
-      // If we have the secret, we ALREADY want to give access.
-      // We only try Firebase to get a token if we can, but if not, we still return success.
-      try {
-        const adminEmail = "aborakan8885@gmail.com";
-        const authAdmin = getAuth();
+      if (type === 'file') {
+        const dbContent = await fs.readFile(FILES_DB, "utf-8");
+        const dbData = JSON.parse(dbContent);
         
-        try {
-          let userRecord;
-          try {
-            userRecord = await authAdmin.getUserByEmail(adminEmail);
-          } catch (e: any) {
-            if (e.code === 'auth/user-not-found') {
-              userRecord = await authAdmin.createUser({
-                email: adminEmail,
-                displayName: "مدير النظام الرئيسي",
-              });
-            } else {
-              throw e;
-            }
-          }
-
-          const customToken = await authAdmin.createCustomToken(userRecord.uid, {
-            admin: true,
-            role: 'admin',
-            email: adminEmail
-          });
-          
-          return res.json({ success: true, token: customToken });
-        } catch (firebaseErr: any) {
-          console.warn(">>> [AUTH BYPASS] Firebase Auth failed, using local bypass:", firebaseErr.message);
-          return res.json({ 
-            success: true, 
-            token: null, 
-            bypass: true,
-            message: "تم الدخول بنجاح (وضع التخطي المباشر)" 
-          });
-        }
-      } catch (e: any) {
-        // Even if getAuth() itself fails
-        return res.json({ 
-          success: true, 
-          token: null, 
-          bypass: true,
-          message: "تم الدخول بنجاح (وضع التخطي المباشر - نظام الأمان معطل)" 
-        });
-      }
-    });
-
-    app.all("/api/admin/sync-data", async (req, res) => {
-      if (req.method !== 'POST') {
-        return res.status(405).json({ error: "Method Not Allowed. Please use POST." });
-      }
-      
-      const { secret, type, data, fileName } = req.body;
-      if (secret !== "1068575628") return res.status(403).json({ error: "Unauthorized" });
-      if (!firestore) return res.status(503).json({ error: "Cloud Sync Service Unavailable" });
-
-      try {
-        if (type === 'file') {
-          const fileRef = firestore.collection('files').doc();
-          await fileRef.set({
-            name: fileName,
-            uploadedAt: FieldValue.serverTimestamp(),
-            status: 'processed'
-          });
-
-          const rows = data.rows || [];
-          const batchSize = 500;
-          for (let i = 0; i < rows.length; i += batchSize) {
-            const batch = firestore.batch();
-            const chunk = rows.slice(i, i + batchSize);
-            chunk.forEach((row: any) => {
-              const rowRef = fileRef.collection('rows').doc();
-              batch.set(rowRef, row);
+        // Find if file already exists to update it
+        const existingIndex = dbData.findIndex((f: any) => f.id === file.id || f.filename === file.filename);
+        if (existingIndex >= 0) {
+            dbData[existingIndex] = { ...dbData[existingIndex], ...file, updatedAt: new Date().toISOString() };
+        } else {
+            dbData.push({ 
+                ...file, 
+                id: file.id || Date.now().toString(),
+                uploadedAt: new Date().toISOString() 
             });
-            await batch.commit();
-          }
-          return res.json({ success: true, fileId: fileRef.id });
         }
-        res.status(400).json({ error: "Invalid type" });
-      } catch (e: any) {
-        console.error(">>> [SYNC ERROR]", e);
-        res.status(500).json({ error: e.message });
+        
+        await fs.writeFile(FILES_DB, JSON.stringify(dbData, null, 2));
+        console.log(`>>> [LOCAL DB] File saved: ${file.filename}`);
+        return res.json({ success: true });
       }
-    });
-
-    // Catch-all for other /api routes to avoid 404/405 from static handler
-    app.all("/api/*all", (req, res) => {
-      console.warn(`>>> [API] Unhandled request: ${req.method} ${req.url}`);
-      res.status(404).json({ error: `API route not found: ${req.method} ${req.url}` });
-    });
-
-    if (process.env.NODE_ENV !== "production") {
-      console.log(">>> [VITE] Loading middleware...");
-      const vite = await createViteServer({
-        server: { 
-          middlewareMode: true,
-          hmr: false // Disable HMR to avoid port conflicts
-        },
-        appType: "spa",
-      });
-      app.use(vite.middlewares);
-      console.log(">>> [VITE] Middleware loaded.");
-    } else {
-      const distPath = path.join(process.cwd(), "dist");
-      app.use(express.static(distPath));
-      app.get("*all", (req, res) => res.sendFile(path.join(distPath, "index.html")));
+      res.status(400).json({ error: "Invalid sync type" });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message });
     }
+  });
 
-    app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-      console.error(">>> [EXPRESS ERROR]", err);
-      res.status(err.status || 500).json({ 
-        error: err.message || "حدث خطأ في الخادم أثناء معالجة الطلب",
-        code: err.code
-      });
-    });
+  app.delete("/api/admin/files/:id", async (req, res) => {
+    const { secret } = req.query;
+    if (secret !== "1068575628") return res.status(403).json({ error: "Unauthorized" });
 
-    app.listen(PORT, "0.0.0.0", () => {
-      console.log(`>>> [SERVER] SUCCESS: Ready at http://localhost:${PORT}`);
+    try {
+      const dbData = JSON.parse(await fs.readFile(FILES_DB, "utf-8"));
+      const filtered = dbData.filter((f: any) => f.id !== req.params.id);
+      await fs.writeFile(FILES_DB, JSON.stringify(filtered, null, 2));
+      res.json({ success: true });
+    } catch (e) {
+      res.status(500).json({ error: "Delete failed" });
+    }
+  });
+
+  // --- LOCAL FEEDBACK API ---
+  app.post("/api/feedback", async (req, res) => {
+    try {
+      const dbData = JSON.parse(await fs.readFile(FEEDBACK_DB, "utf-8"));
+      dbData.push({ ...req.body, id: Date.now().toString(), createdAt: new Date().toISOString() });
+      await fs.writeFile(FEEDBACK_DB, JSON.stringify(dbData, null, 2));
+      res.json({ success: true });
+    } catch (e) {
+      res.status(500).json({ error: "Feedback failed" });
+    }
+  });
+
+  app.get("/api/admin/feedback", async (req, res) => {
+    const { secret } = req.query;
+    if (secret !== "1068575628") return res.status(403).json({ error: "Unauthorized" });
+    const data = await fs.readFile(FEEDBACK_DB, "utf-8");
+    res.json(JSON.parse(data));
+  });
+
+  // --- APP SERVING ---
+  if (process.env.NODE_ENV !== "production") {
+    const vite = await createViteServer({
+      server: { middlewareMode: true, hmr: false },
+      appType: "spa",
     });
-  } catch (err) {
-    console.error(">>> [SERVER] CRITICAL FAILURE:", err);
-    process.exit(1);
+    app.use(vite.middlewares);
+  } else {
+    const distPath = path.join(process.cwd(), "dist");
+    app.use(express.static(distPath));
+    app.get("*all", (req, res) => res.sendFile(path.join(distPath, "index.html")));
   }
+
+  app.listen(PORT, "0.0.0.0", () => {
+    console.log(`>>> [SERVER] SUCCESS: Local DB Mode running at http://localhost:${PORT}`);
+  });
 }
 
 startServer();

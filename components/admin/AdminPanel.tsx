@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, UploadCloud, List, Users, MessageSquare, ShieldAlert, LogIn, UserCircle, Settings, Mail, Key, Loader2, AlertCircle } from 'lucide-react';
+import { X, UploadCloud, List, Users, MessageSquare, ShieldAlert, Settings, Mail, Key, Loader2, AlertCircle } from 'lucide-react';
 import { Card } from '../ui/Card';
 import FileUpload from './FileUpload';
 import FileManagement from './FileManagement';
@@ -7,7 +7,6 @@ import UserManagement from './UserManagement';
 import FeedbackManagement from './FeedbackManagement';
 import { AccountSettings } from './AccountSettings';
 import { auth } from '../../lib/firebase';
-import { GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, signInWithCustomToken } from 'firebase/auth';
 import { Button } from '../ui/Button';
 import type { User } from '../../types';
 
@@ -20,152 +19,71 @@ type AdminTab = 'upload' | 'manage' | 'users' | 'feedback' | 'account';
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onOpenAuth }) => {
     const [activeTab, setActiveTab] = useState<AdminTab>('upload');
-    const [isFirebaseAuthed, setIsFirebaseAuthed] = useState<boolean>(!!auth.currentUser);
+    const [isAuthed, setIsAuthed] = useState<boolean>(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [authMode, setAuthMode] = useState<'google' | 'email' | 'bypass'>('google');
-    const [email, setEmail] = useState('aborakan8885@gmail.com');
-    const [password, setPassword] = useState('');
-    const [civilId, setCivilId] = useState('');
+    const [civilId, setCivilId] = useState('1068575628');
 
     useEffect(() => {
-        const unsub = auth.onAuthStateChanged((user) => {
-            setIsFirebaseAuthed(!!user);
+        const unsub = auth.onAuthStateChanged((user: any) => {
+            setIsAuthed(!!user);
         });
-        
-        // Also check if we are in bypass mode
-        const bypass = localStorage.getItem('educational_map_bypass_secret');
-        if (bypass === '1068575628') {
-          setIsFirebaseAuthed(true);
-        }
-
         return () => unsub();
     }, []);
 
-    const handleBypassLogin = async (e: React.FormEvent) => {
+    const handleLocalLogin = async (e: React.FormEvent) => {
       e.preventDefault();
       setIsLoading(true);
       setError(null);
       
       try {
-        // --- FRONTEND-ONLY BYPASS (USER REQUESTED) ---
-        // Completely removing server connection to bypass 405 errors
-        if (civilId === '1068575628') {
-          console.info(">>> [AUTH] Frontend-Only Bypass Activated");
-          
-          // Set local state as requested
-          localStorage.setItem('educational_map_bypass_secret', civilId);
-          localStorage.setItem('isAdmin', 'true');
-          
-          const appUser: User = {
-              id: 'admin-bypass-local',
-              name: 'مدير النظام المعتمد',
-              role: 'admin',
-              userType: 'employee',
-              workEntity: 'الإدارة العامة للتعليم (دخول مباشر)',
-              status: 'active',
-              email: 'aborakan8885@gmail.com',
-              permissions: {
-                  visibleLayers: ['schools', 'kmz'],
-                  canViewCoordinates: true,
-                  canExportReports: true,
-                  canUseSurroundingAnalysis: true
-              }
-          };
-          localStorage.setItem('educational_map_current_user', JSON.stringify(appUser));
-          setIsFirebaseAuthed(true);
-        } else {
-          throw new Error('رقم الهوية غير صحيح. يرجى التأكد من البيانات.');
+        const response = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ secret: civilId })
+        });
+
+        if (!response.ok) {
+           throw new Error('رقم الهوية غير مصرح له بالدخول كمسؤول.');
         }
+
+        localStorage.setItem('educational_map_bypass_secret', civilId);
+        localStorage.setItem('isAdmin', 'true');
+        
+        const appUser: User = {
+            id: 'admin-local-session',
+            name: 'مدير النظام المعتمد',
+            role: 'admin',
+            userType: 'employee',
+            workEntity: 'الإدارة العامة للتعليم (دخول محلي)',
+            status: 'active',
+            email: 'aborakan8885@gmail.com',
+            permissions: {
+                visibleLayers: ['schools', 'kmz'],
+                canViewCoordinates: true,
+                canExportReports: true,
+                canUseSurroundingAnalysis: true
+            }
+        };
+        localStorage.setItem('educational_map_current_user', JSON.stringify(appUser));
+        setIsAuthed(true);
       } catch (err: any) {
-        console.error("Local bypass error:", err);
-        setError(err.message || 'حدث خطأ أثناء الدخول');
+        setError(err.message || 'حدث خطأ أثناء الدخول المحلي');
       } finally {
         setIsLoading(false);
       }
     };
 
-    const handleEmailSync = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setIsLoading(true);
-        setError(null);
-        try {
-            const result = await signInWithEmailAndPassword(auth, email, password);
-            const user = result.user;
-            
-            const appUser: User = {
-                id: user.uid,
-                name: user.displayName || 'مدير النظام السحابي',
-                role: user.email === 'aborakan8885@gmail.com' ? 'admin' : 'user',
-                userType: 'employee',
-                workEntity: user.email === 'aborakan8885@gmail.com' ? 'إدارة النظام السحابية' : 'مستخدم خارجي',
-                status: 'active',
-                email: user.email || undefined,
-                permissions: {
-                    visibleLayers: ['schools', 'kmz'],
-                    canViewCoordinates: user.email === 'aborakan8885@gmail.com',
-                    canExportReports: true,
-                    canUseSurroundingAnalysis: true
-                }
-            };
-            
-            localStorage.setItem('educational_map_current_user', JSON.stringify(appUser));
-        } catch (err: any) {
-            console.error("Email sync error:", err);
-            let msg = 'فشل الدخول. تأكد من تفعيل (Email/Password) في Firebase ومن صحة البيانات.';
-            if (err.code === 'auth/user-not-found') msg = 'المستخدم غير موجود. يرجى إنشاء حساب في Firebase بالبريد المعتمد.';
-            if (err.code === 'auth/wrong-password') msg = 'كلمة المرور غير صحيحة.';
-            setError(msg);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const handleGoogleSync = async () => {
-        setIsLoading(true);
-        setError(null);
-        try {
-            const provider = new GoogleAuthProvider();
-            const result = await signInWithPopup(auth, provider);
-            const user = result.user;
-            
-            const appUser: User = {
-                id: user.uid,
-                name: user.displayName || 'مدير النظام الرئيسي',
-                role: user.email === 'aborakan8885@gmail.com' ? 'admin' : 'user',
-                userType: 'employee',
-                workEntity: user.email === 'aborakan8885@gmail.com' ? 'الإدارة العامة للتعليم' : 'مستخدم خارجي',
-                status: 'active',
-                email: user.email || undefined,
-                permissions: {
-                    visibleLayers: ['schools', 'kmz'],
-                    canViewCoordinates: user.email === 'aborakan8885@gmail.com',
-                    canExportReports: true,
-                    canUseSurroundingAnalysis: true
-                }
-            };
-            
-            localStorage.setItem('educational_map_current_user', JSON.stringify(appUser));
-        } catch (err: any) {
-            console.error("Sync error details:", err);
-            const errorCode = err.code || 'unknown';
-            const errorMessage = err.message || 'خطأ غير معروف';
-            setError(`فشل الاتصال: [${errorCode}] - ${errorMessage}`);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
     const renderContent = () => {
-        if (!isFirebaseAuthed) {
+        if (!isAuthed) {
             return (
                 <div className="flex flex-col items-center justify-center h-full p-12 text-center bg-white rounded-xl shadow-inner border-2 border-dashed border-gray-100">
                     <div className="w-24 h-24 bg-primary-light/10 rounded-3xl flex items-center justify-center mb-8 border-4 border-primary-light/20 shadow-lg shadow-primary-light/5">
-                        <UploadCloud className="h-12 w-12 text-primary-dark" />
+                        <ShieldAlert className="h-12 w-12 text-primary-dark" />
                     </div>
-                    <h3 className="text-2xl font-black text-gray-900 mb-4">تفعيل المزامنة السحابية</h3>
+                    <h3 className="text-2xl font-black text-gray-900 mb-4 text-emerald-700">تفعيل لوحة الإدارة (الوضع المحلي)</h3>
                     <p className="text-gray-600 max-w-md mx-auto mb-10 text-sm leading-relaxed font-medium">
-                        أنت الآن مسجل كمسؤول محلي. لكي تظهر الملفات التي ترفعها لجميع المستخدمين الآخرين، يجب تفعيل <strong>مزامنة Google السحابية</strong> ببريدك المعتمد.
+                        تم تفعيل <strong>الوضع المحلي المستقل</strong> لتخطي عوائق قوقل وفايربيس. يمكنك الآن إدارة ملفاتك وبياناتك مباشرة عبر الخادم الخاص بك.
                     </p>
 
                     {error && (
@@ -175,118 +93,33 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onOpenAuth }) => {
                         </div>
                     )}
 
-                    {authMode === 'google' ? (
-                        <div className="space-y-4">
-                            <Button 
-                                onClick={handleGoogleSync}
-                                disabled={isLoading}
-                                className="bg-primary-dark hover:bg-primary-medium text-white px-12 py-5 rounded-2xl shadow-xl flex items-center justify-center gap-4 font-extrabold transition-all text-lg w-full"
-                            >
-                                {isLoading ? (
-                                    <Loader2 className="h-6 w-6 animate-spin" />
-                                ) : (
-                                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-7 h-7" alt="Google" />
-                                )}
-                                <span>{isLoading ? 'جاري الاتصال...' : 'تفعيل المزامنة عبر Google'}</span>
-                            </Button>
-                            
-                            <button 
-                                onClick={() => setAuthMode('email')}
-                                className="text-primary-dark font-bold text-sm hover:underline"
-                            >
-                                أو استخدم الدخول المباشر بالبريد
-                            </button>
-                            
-                            <button 
-                                onClick={() => setAuthMode('bypass')}
-                                className="text-gray-500 font-bold text-xs hover:underline block w-full mt-2"
-                            >
-                                هل تواجه قيوداً في Google؟ استخدم رقم الهوية للتفعيل الفوري
-                            </button>
+                    <form onSubmit={handleLocalLogin} className="space-y-4 text-right w-full max-w-md">
+                        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs leading-relaxed font-medium mb-4">
+                            💡 أدخل رقم الهوية المعتمد لتفعيل لوحة التحكم والمزامنة المحلية فوراً.
                         </div>
-                    ) : authMode === 'email' ? (
-                        <form onSubmit={handleEmailSync} className="space-y-4 text-right w-full max-w-md">
-                            {/* ... existing email form ... */}
-                            {/* I will replace the whole form to be safe */}
-                            <div>
-                                <label className="block text-xs font-bold text-gray-700 mb-1">البريد الإلكتروني المعتمد</label>
-                                <div className="relative">
-                                    <input 
-                                        type="email"
-                                        value={email}
-                                        onChange={e => setEmail(e.target.value)}
-                                        className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-light outline-none font-bold pr-10"
-                                        placeholder="example@gmail.com"
-                                        required
-                                    />
-                                    <Mail className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                                </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-700 mb-1">رقم الهوية (المدير)</label>
+                            <div className="relative">
+                                <input 
+                                    type="text"
+                                    value={civilId}
+                                    onChange={e => setCivilId(e.target.value)}
+                                    className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-light outline-none font-bold pr-10"
+                                    placeholder="106xxxxxxx"
+                                    required
+                                />
+                                <ShieldAlert className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                             </div>
-                            <div>
-                                <label className="block text-xs font-bold text-gray-700 mb-1">كلمة مرور السحابة (Firebase)</label>
-                                <div className="relative">
-                                    <input 
-                                        type="password"
-                                        value={password}
-                                        onChange={e => setPassword(e.target.value)}
-                                        className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-light outline-none font-bold pr-10"
-                                        placeholder="••••••••"
-                                        required
-                                    />
-                                    <Key className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                                </div>
-                            </div>
-                            <Button 
-                                type="submit"
-                                disabled={isLoading}
-                                className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-xl shadow-lg flex items-center justify-center gap-2"
-                            >
-                                {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ShieldAlert className="h-5 w-5" />}
-                                <span>تفعيل المزامنة المباشرة</span>
-                            </Button>
-                            <button 
-                                type="button"
-                                onClick={() => setAuthMode('google')}
-                                className="w-full text-center text-xs font-bold text-gray-500 hover:text-primary-dark"
-                            >
-                                العودة لخيار Google
-                            </button>
-                        </form>
-                    ) : (
-                        <form onSubmit={handleBypassLogin} className="space-y-4 text-right w-full max-w-md">
-                            <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs leading-relaxed font-medium mb-4">
-                                💡 هذا الخيار يسمح لك بتفعيل لوحة الإدارة والمزامنة السحابية مباشرة باستخدام <strong>رقم الهوية</strong> الخاص بك، لتخطي قيود شاشة موافقة Google.
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-gray-700 mb-1">رقم الهوية (المدير)</label>
-                                <div className="relative">
-                                    <input 
-                                        type="text"
-                                        value={civilId}
-                                        onChange={e => setCivilId(e.target.value)}
-                                        className="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-primary-light outline-none font-bold pr-10"
-                                        placeholder="106xxxxxxx"
-                                        required
-                                    />
-                                    <ShieldAlert className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                                </div>
-                            </div>
-                            <Button 
-                                type="submit"
-                                className="w-full py-4 bg-primary-dark hover:bg-primary-medium text-white font-black rounded-xl shadow-lg flex items-center justify-center gap-2"
-                            >
-                                <ShieldAlert className="h-5 w-5" />
-                                <span>تفعيل لوحة الإدارة فوراً</span>
-                            </Button>
-                            <button 
-                                type="button"
-                                onClick={() => setAuthMode('google')}
-                                className="w-full text-center text-xs font-bold text-gray-500 hover:text-primary-dark"
-                            >
-                                العودة لخيار Google
-                            </button>
-                        </form>
-                    )}
+                        </div>
+                        <Button 
+                            type="submit"
+                            disabled={isLoading}
+                            className="w-full py-4 bg-primary-dark hover:bg-primary-medium text-white font-black rounded-xl shadow-lg flex items-center justify-center gap-2"
+                        >
+                            {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ShieldAlert className="h-5 w-5" />}
+                            <span>تفعيل لوحة الإدارة فوراً</span>
+                        </Button>
+                    </form>
                 </div>
             );
         }

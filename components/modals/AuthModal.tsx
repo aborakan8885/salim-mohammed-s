@@ -5,7 +5,6 @@ import { Card } from '../ui/Card';
 import { Alert, AlertDescription } from '../ui/Alert';
 import type { User } from '../../types';
 import { auth } from '../../lib/firebase';
-import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 
 interface AuthModalProps {
   onClose: () => void;
@@ -107,41 +106,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onLoginSuccess })
   const [civilIdLogin, setCivilIdLogin] = useState('');
   const [passwordLogin, setPasswordLogin] = useState('');
 
-  // Google Login handler
+  // Google Login handler (DISABLED - Local Mode)
   const handleGoogleLogin = async () => {
-    setIsLoading(true);
-    setError('');
-    try {
-        const provider = new GoogleAuthProvider();
-        const result = await signInWithPopup(auth, provider);
-        const user = result.user;
-        
-        // Map Firebase user to App User
-        const appUser: User = {
-            id: user.uid,
-            name: user.displayName || 'مدير النظام الرئيسي',
-            role: user.email === 'aborakan8885@gmail.com' ? 'admin' : 'user',
-            userType: 'employee',
-            workEntity: user.email === 'aborakan8885@gmail.com' ? 'الإدارة العامة للتعليم' : 'مستخدم خارجي',
-            status: 'active',
-            email: user.email || undefined,
-            permissions: {
-                visibleLayers: ['schools', 'kmz'],
-                canViewCoordinates: user.email === 'aborakan8885@gmail.com',
-                canExportReports: true,
-                canUseSurroundingAnalysis: true
-            }
-        };
-        
-        // Save to localStorage immediately to prevent race conditions with auth listener
-        localStorage.setItem('educational_map_current_user', JSON.stringify(appUser));
-        onLoginSuccess(appUser);
-    } catch (err: any) {
-        console.error("Google login error:", err);
-        setError('فشل تسجيل الدخول عبر Google. الرجاء المحاولة مرة أخرى.');
-    } finally {
-        setIsLoading(false);
-    }
+    setError('عذراً، تسجيل الدخول عبر Google معطل حالياً في الوضع المحلي. يرجى استخدام الدخول التقليدي برقم السجل.');
   };
 
   // Registration states (rest of code)
