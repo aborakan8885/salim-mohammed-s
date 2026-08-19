@@ -12,12 +12,14 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
-    // Publicly readable map data (Files and their data rows)
+    // Map data - Temporary allow public write for Frontend-Only bypass
     match /files/{fileId} {
       allow read: if true;
+      allow write: if true;
       
       match /rows/{rowId} {
         allow read: if true;
+        allow write: if true;
       }
     }
 

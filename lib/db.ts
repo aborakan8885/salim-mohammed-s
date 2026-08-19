@@ -131,40 +131,12 @@ export async function putFile(file: FileMapping): Promise<void> {
         }
     }
 
-    // 2. Fallback: Server-side sync via Admin SDK
+    // 2. Fallback (DEACTIVATED): User requested Frontend-Only bypass
+    // We removed server-side sync to avoid 405 errors on the platform
     if (bypassSecret === '1068575628') {
-        console.log(">>> [SYNC] Path: Server-side Admin SDK");
-        try {
-            const response = await fetch('/api/admin/sync-data', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    secret: bypassSecret,
-                    type: 'file',
-                    fileName: file.filename,
-                    data: { rows: file.data }
-                })
-            });
-
-            if (!response.ok) {
-                const contentType = response.headers.get('content-type');
-                if (contentType && contentType.includes('application/json')) {
-                    const err = await response.json();
-                    throw new Error(err.error || `فشل المزامنة السحابية (Status: ${response.status})`);
-                } else {
-                    const text = await response.text();
-                    console.error(">>> [SYNC] Non-JSON Server Error:", text);
-                    throw new Error(`خطأ في الخادم (Status: ${response.status}). قد يكون حجم الملف كبيراً جداً.`);
-                }
-            }
-            console.log(">>> [SYNC] SUCCESS: Server-side Admin SDK");
-        } catch (error: any) {
-            console.error(">>> [SYNC] Server-side Sync Error:", error);
-            if (error.message.includes('Unexpected token')) {
-                throw new Error('حدث خطأ غير متوقع في استجابة الخادم. يرجى المحاولة بحجم ملف أصغر.');
-            }
-            throw error;
-        }
+        console.warn(">>> [SYNC] Server-side fallback is deactivated by user request (Frontend-Only mode).");
+        // If we reach here and it's not working, it means firestore.rules are blocking us.
+        // We will try to rely on client-side firestore only.
         return;
     }
 

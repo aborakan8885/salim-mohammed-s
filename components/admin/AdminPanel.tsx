@@ -48,57 +48,37 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onOpenAuth }) => {
       setError(null);
       
       try {
-        const response = await fetch('/api/admin/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ secret: civilId })
-        });
-
-        if (!response.ok) {
-          const contentType = response.headers.get('content-type');
-          if (contentType && contentType.includes('application/json')) {
-            const err = await response.json();
-            throw new Error(err.error || 'فشل التحقق من الهوية');
-          } else {
-            // Handle HTML/Text error pages
-            const text = await response.text();
-            console.error("Non-JSON Auth Error:", text);
-            throw new Error(`خطأ في الخادم (${response.status}). يرجى المحاولة لاحقاً.`);
-          }
+        // --- FRONTEND-ONLY BYPASS (USER REQUESTED) ---
+        // Completely removing server connection to bypass 405 errors
+        if (civilId === '1068575628') {
+          console.info(">>> [AUTH] Frontend-Only Bypass Activated");
+          
+          // Set local state as requested
+          localStorage.setItem('educational_map_bypass_secret', civilId);
+          localStorage.setItem('isAdmin', 'true');
+          
+          const appUser: User = {
+              id: 'admin-bypass-local',
+              name: 'مدير النظام المعتمد',
+              role: 'admin',
+              userType: 'employee',
+              workEntity: 'الإدارة العامة للتعليم (دخول مباشر)',
+              status: 'active',
+              email: 'aborakan8885@gmail.com',
+              permissions: {
+                  visibleLayers: ['schools', 'kmz'],
+                  canViewCoordinates: true,
+                  canExportReports: true,
+                  canUseSurroundingAnalysis: true
+              }
+          };
+          localStorage.setItem('educational_map_current_user', JSON.stringify(appUser));
+          setIsFirebaseAuthed(true);
+        } else {
+          throw new Error('رقم الهوية غير صحيح. يرجى التأكد من البيانات.');
         }
-
-        const result = await response.json();
-        const { token, bypass } = result;
-        
-        if (token) {
-          // Sign in with Firebase Custom Token
-          const userCred = await signInWithCustomToken(auth, token);
-          console.log(">>> [AUTH] Signed in with Custom Token:", userCred.user.email);
-        } else if (bypass) {
-          console.info("Signed in via bypass mode (No Firebase Token)");
-        }
-        
-        localStorage.setItem('educational_map_bypass_secret', civilId);
-        
-        const appUser: User = {
-            id: auth.currentUser?.uid || 'admin-bypass',
-            name: 'مدير النظام المعتمد',
-            role: 'admin',
-            userType: 'employee',
-            workEntity: 'الإدارة العامة للتعليم (دخول مباشر)',
-            status: 'active',
-            email: 'aborakan8885@gmail.com',
-            permissions: {
-                visibleLayers: ['schools', 'kmz'],
-                canViewCoordinates: true,
-                canExportReports: true,
-                canUseSurroundingAnalysis: true
-            }
-        };
-        localStorage.setItem('educational_map_current_user', JSON.stringify(appUser));
-        setIsFirebaseAuthed(true);
       } catch (err: any) {
-        console.error("Bypass login error:", err);
+        console.error("Local bypass error:", err);
         setError(err.message || 'حدث خطأ أثناء الدخول');
       } finally {
         setIsLoading(false);
