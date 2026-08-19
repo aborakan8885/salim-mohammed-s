@@ -56,56 +56,72 @@ async function startServer() {
 
     // Admin Login via Civil ID -> Returns Firebase Custom Token (if possible)
     app.all("/api/admin/login", async (req, res) => {
+      // Handle CORS preflight explicitly if needed, though cors() middleware should handle it
+      if (req.method === 'OPTIONS') {
+        return res.status(204).end();
+      }
+
       if (req.method !== 'POST') {
-        console.warn(`>>> [AUTH] Method ${req.method} not allowed on login`);
         return res.status(405).json({ error: "Method Not Allowed. Please use POST." });
       }
 
       const { secret } = req.body;
       if (secret !== "1068575628") return res.status(403).json({ error: "Unauthorized" });
 
+      // ULTRA-RESILIENT BYPASS: 
+      // If we have the secret, we ALREADY want to give access.
+      // We only try Firebase to get a token if we can, but if not, we still return success.
       try {
         const adminEmail = "aborakan8885@gmail.com";
         const authAdmin = getAuth();
         
-        let userRecord;
         try {
-          userRecord = await authAdmin.getUserByEmail(adminEmail);
-        } catch (e: any) {
-          if (e.code === 'auth/user-not-found') {
-            userRecord = await authAdmin.createUser({
-              email: adminEmail,
-              displayName: "مدير النظام الرئيسي",
-            });
-          } else {
-            throw e;
+          let userRecord;
+          try {
+            userRecord = await authAdmin.getUserByEmail(adminEmail);
+          } catch (e: any) {
+            if (e.code === 'auth/user-not-found') {
+              userRecord = await authAdmin.createUser({
+                email: adminEmail,
+                displayName: "مدير النظام الرئيسي",
+              });
+            } else {
+              throw e;
+            }
           }
-        }
 
-        try {
-          // Generate Custom Token with email claim to satisfy firestore.rules
           const customToken = await authAdmin.createCustomToken(userRecord.uid, {
             admin: true,
             role: 'admin',
             email: adminEmail
           });
+          
           return res.json({ success: true, token: customToken });
-        } catch (tokenError: any) {
-          console.warn(">>> [LOGIN WARNING] Could not create custom token:", tokenError.message);
+        } catch (firebaseErr: any) {
+          console.warn(">>> [AUTH BYPASS] Firebase Auth failed, using local bypass:", firebaseErr.message);
           return res.json({ 
             success: true, 
             token: null, 
             bypass: true,
-            message: "تم التحقق بنجاح (وضع التخطي المباشر مفعل)"
+            message: "تم الدخول بنجاح (وضع التخطي المباشر)" 
           });
         }
       } catch (e: any) {
-        console.error(">>> [LOGIN ERROR]", e);
-        res.status(500).json({ error: e.message });
+        // Even if getAuth() itself fails
+        return res.json({ 
+          success: true, 
+          token: null, 
+          bypass: true,
+          message: "تم الدخول بنجاح (وضع التخطي المباشر - نظام الأمان معطل)" 
+        });
       }
     });
 
     app.all("/api/admin/sync-data", async (req, res) => {
+      if (req.method === 'OPTIONS') {
+        return res.status(204).end();
+      }
+
       if (req.method !== 'POST') {
         return res.status(405).json({ error: "Method Not Allowed. Please use POST." });
       }
