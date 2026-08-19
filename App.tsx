@@ -11,6 +11,8 @@ import type { EducationalPlace, FilterState, Category, User, FileMapping, School
 import { Search, Menu, SlidersHorizontal } from 'lucide-react';
 import { getAllFiles, deleteFile, putFile } from './lib/db';
 import AdminPanel from './components/admin/AdminPanel';
+import { auth } from './lib/firebase';
+import { signOut } from 'firebase/auth';
 
 
 // --- SPATIAL ANALYSIS HELPERS ---
@@ -1672,9 +1674,10 @@ function AppContent() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setCurrentUser(null);
     try {
+      await signOut(auth);
       localStorage.removeItem('educational_map_current_user');
     } catch (e) {
       console.error("Failed to remove user from storage", e);

@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
-import { X, LogIn, UserCheck, ShieldCheck, Search, CheckCircle2, AlertTriangle, KeyRound, Building, User as UserIcon } from 'lucide-react';
+import { X, LogIn, UserCheck, ShieldCheck, Search, CheckCircle2, AlertTriangle, KeyRound, Building, User as UserIcon, Loader2 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { Alert, AlertDescription } from '../ui/Alert';
 import type { User } from '../../types';
+import { auth } from '../../lib/firebase';
+import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 
 interface AuthModalProps {
   onClose: () => void;
@@ -14,44 +16,6 @@ export const MOCK_USERS_KEY = 'educational_map_users';
 
 const INITIAL_DEFAULT_USERS: User[] = [
   {
-    id: 'admin-1000000000',
-    civilId: '1000000000',
-    name: 'مسؤول النظام الرئيسي',
-    password: 'admin',
-    role: 'admin',
-    userType: 'employee',
-    workEntity: 'الإدارة العامة للتعليم بمنطقة المدينة المنورة',
-    jobTitle: 'مدير النظام والتخطيط',
-    status: 'active',
-    phone: '0500000000',
-    permissions: {
-      visibleLayers: ['schools', 'kmz'],
-      canViewCoordinates: true,
-      canExportReports: true,
-      canUseSurroundingAnalysis: true
-    },
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 'emp-1012345678',
-    civilId: '1012345678',
-    name: 'د. خالد بن عبدالله الحربي',
-    password: '123456',
-    role: 'user',
-    userType: 'employee',
-    workEntity: 'إدارة التخطيط والتوجيه المدرسي',
-    jobTitle: 'أخصائي خراط ومخطط',
-    status: 'active',
-    phone: '0555555555',
-    permissions: {
-      visibleLayers: ['schools', 'kmz'],
-      canViewCoordinates: true,
-      canExportReports: true,
-      canUseSurroundingAnalysis: true
-    },
-    createdAt: new Date().toISOString()
-  },
-  {
     id: 'emp-1087654321',
     civilId: '1087654321',
     name: 'سعود بن فهد العتيبي',
@@ -60,7 +24,7 @@ const INITIAL_DEFAULT_USERS: User[] = [
     userType: 'employee',
     workEntity: 'مكتب تعليم شرق المدينة',
     jobTitle: 'مشرف متابعة ميدانية',
-    status: 'disabled', // معطل الدخول لتجربة الخيار
+    status: 'disabled',
     phone: '0544444444',
     permissions: {
       visibleLayers: ['schools', 'kmz'],
@@ -94,7 +58,6 @@ export const saveMockUsers = (users: User[]) => {
   }
 };
 
-// Simulated Civil ID database for Ministry Employees
 const MOCK_CIVIL_ID_DATABASE: Record<string, { name: string; workEntity: string; jobTitle: string; phone: string }> = {
   '1098765432': {
     name: 'عبدالرحمن بن محمد الغامدي',
@@ -107,24 +70,6 @@ const MOCK_CIVIL_ID_DATABASE: Record<string, { name: string; workEntity: string;
     workEntity: 'الشؤون التعليمية • وحدة القبول',
     jobTitle: 'رئيس قسم القبول التوزيعي',
     phone: '0598765432'
-  },
-  '1022233344': {
-    name: 'فيصل بن بدر الصاعدي',
-    workEntity: 'مكتب تعليم وسط المدينة',
-    jobTitle: 'مشرف تخطيط ومباني',
-    phone: '0533333333'
-  },
-  '1011122233': {
-    name: 'سارة بنت خالد المطيري',
-    workEntity: 'الشؤون التعليمية • وحدة القبول',
-    jobTitle: 'أخصائي بيانات واستعلام مكاني',
-    phone: '0566677788'
-  },
-  '1044455566': {
-    name: 'فهد بن أحمد الرشيدي',
-    workEntity: 'إدارة التخطيط المدرسي',
-    jobTitle: 'محلل نظم جغرافية',
-    phone: '0544411122'
   }
 };
 
@@ -132,10 +77,47 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onLoginSuccess })
   const [activeTab, setActiveTab] = useState<'beneficiary' | 'employee'>('employee');
   const [employeeMode, setEmployeeMode] = useState<'login' | 'register_step1' | 'register_step2' | 'register_step3'>('login');
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   // Login form state
   const [civilIdLogin, setCivilIdLogin] = useState('');
   const [passwordLogin, setPasswordLogin] = useState('');
+
+  // Google Login handler
+  const handleGoogleLogin = async () => {
+    setIsLoading(true);
+    setError('');
+    try {
+        const provider = new GoogleAuthProvider();
+        const result = await signInWithPopup(auth, provider);
+        const user = result.user;
+        
+        // Map Firebase user to App User
+        const appUser: User = {
+            id: user.uid,
+            name: user.displayName || 'مستخدم Google',
+            role: user.email === 'aborakan8885@gmail.com' ? 'admin' : 'user',
+            userType: 'employee',
+            workEntity: user.email === 'aborakan8885@gmail.com' ? 'إدارة النظام السحابية' : 'مستخدم خارجي',
+            status: 'active',
+            permissions: {
+                visibleLayers: ['schools', 'kmz'],
+                canViewCoordinates: user.email === 'aborakan8885@gmail.com',
+                canExportReports: true,
+                canUseSurroundingAnalysis: true
+            }
+        };
+        
+        onLoginSuccess(appUser);
+    } catch (err: any) {
+        console.error("Google login error:", err);
+        setError('فشل تسجيل الدخول عبر Google. الرجاء المحاولة مرة أخرى.');
+    } finally {
+        setIsLoading(false);
+    }
+  };
+
+  // Registration states (rest of code)
 
   // Registration states
   const [inputCivilId, setInputCivilId] = useState('');
@@ -436,6 +418,29 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onLoginSuccess })
                   <Button type="submit" className="w-full py-3 bg-primary-dark hover:bg-primary-medium text-white font-bold rounded-xl shadow-md">
                     <LogIn className="h-4 w-4 ml-2" />
                     تسجيل دخول موظف
+                  </Button>
+
+                  <div className="relative my-4">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-gray-300"></div>
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-white px-2 text-gray-500 font-bold">أو الدخول عبر Google</span>
+                    </div>
+                  </div>
+
+                  <Button 
+                    type="button" 
+                    onClick={handleGoogleLogin} 
+                    disabled={isLoading}
+                    className="w-full py-3 bg-white border-2 border-gray-200 hover:bg-gray-50 text-gray-700 font-bold rounded-xl shadow-sm flex items-center justify-center gap-3 transition-all"
+                  >
+                    {isLoading ? (
+                        <Loader2 className="h-5 w-5 animate-spin text-primary-dark" />
+                    ) : (
+                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-5 h-5" alt="Google" />
+                    )}
+                    <span>تسجيل الدخول باستخدام Google</span>
                   </Button>
 
                   <div className="pt-3 border-t text-center">
