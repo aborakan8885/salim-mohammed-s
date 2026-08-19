@@ -16,6 +16,23 @@ export const MOCK_USERS_KEY = 'educational_map_users';
 
 const INITIAL_DEFAULT_USERS: User[] = [
   {
+    id: 'admin-1068575628',
+    civilId: '1068575628',
+    name: 'مدير النظام الرئيسي',
+    password: 'admin',
+    role: 'admin',
+    userType: 'employee',
+    workEntity: 'الإدارة العامة للتعليم • المدينة المنورة',
+    status: 'active',
+    permissions: {
+      visibleLayers: ['schools', 'kmz'],
+      canViewCoordinates: true,
+      canExportReports: true,
+      canUseSurroundingAnalysis: true
+    },
+    createdAt: new Date().toISOString()
+  },
+  {
     id: 'emp-1087654321',
     civilId: '1087654321',
     name: 'سعود بن فهد العتيبي',
@@ -157,14 +174,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onLoginSuccess })
     }
 
     // Default hardcoded admin fallback
-    if ((idClean.toLowerCase() === 'admin' || idClean === '1000000000') && pwdClean === 'admin') {
+    if ((idClean === '1068575628' || idClean === '1000000000') && pwdClean === 'admin') {
       const adminUser: User = {
         id: 'admin-user',
-        civilId: '1000000000',
-        name: 'مسؤول النظام',
+        civilId: '1068575628',
+        name: 'مدير النظام الرئيسي',
         role: 'admin',
         userType: 'employee',
-        workEntity: 'الإدارة العامة للتعليم',
+        workEntity: 'الإدارة العامة للتعليم • المدينة المنورة',
         status: 'active',
         permissions: {
           visibleLayers: ['schools', 'kmz'],

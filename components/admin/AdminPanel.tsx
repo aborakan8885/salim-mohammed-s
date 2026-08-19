@@ -30,19 +30,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onOpenAuth }) => {
         if (!isFirebaseAuthed) {
             return (
                 <div className="flex flex-col items-center justify-center h-full p-12 text-center bg-white rounded-xl">
-                    <div className="w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center mb-6 border-4 border-amber-100">
-                        <ShieldAlert className="h-10 w-10 text-amber-500" />
+                    <div className="w-20 h-20 bg-primary-light/10 rounded-full flex items-center justify-center mb-6 border-4 border-primary-light/20">
+                        <UploadCloud className="h-10 w-10 text-primary-dark" />
                     </div>
-                    <h3 className="text-xl font-bold text-gray-800 mb-2">مطلوب مصادقة سحابية</h3>
+                    <h3 className="text-xl font-bold text-gray-800 mb-2">تفعيل المزامنة السحابية</h3>
                     <p className="text-gray-600 max-w-md mx-auto mb-8 text-sm leading-relaxed">
-                        عذراً، للوصول إلى أدوات الرفع والإدارة المتقدمة وضمان مزامنة البيانات مع بقية المستخدمين، يجب تسجيل الدخول باستخدام <strong>حساب Google المعتمد</strong>.
+                        أنت الآن مسجل كمسؤول محلي. لكي تظهر الملفات التي ترفعها لجميع المستخدمين الآخرين، يجب تفعيل <strong>مزامنة Google السحابية</strong> ببريدك المعتمد.
                     </p>
                     <Button 
                         onClick={() => { onClose(); onOpenAuth?.(); }}
-                        className="bg-primary-dark hover:bg-primary-medium text-white px-8 py-3 rounded-2xl shadow-lg flex items-center gap-2 font-bold transition-all"
+                        className="bg-primary-light hover:bg-primary-medium text-primary-dark px-10 py-4 rounded-2xl shadow-lg flex items-center gap-3 font-extrabold transition-all"
                     >
-                        <LogIn className="h-5 w-5" />
-                        الذهاب لتسجيل الدخول السحابي
+                        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" className="w-6 h-6" alt="Google" />
+                        تفعيل المزامنة مع السحابة (Google)
                     </Button>
                 </div>
             );
