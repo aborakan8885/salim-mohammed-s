@@ -15,16 +15,35 @@ import type { FileMapping } from '../types';
 const COLLECTION_NAME = 'files';
 
 /**
+ * Deeply removes undefined values from an object.
+ * Firestore does not support 'undefined'.
+ */
+function sanitizeData(data: any): any {
+    if (Array.isArray(data)) {
+        return data.map(sanitizeData);
+    } else if (data !== null && typeof data === 'object' && !(data instanceof ArrayBuffer) && !('toUint8Array' in data)) {
+        const result: any = {};
+        Object.keys(data).forEach(key => {
+            const value = data[key];
+            if (value !== undefined) {
+                result[key] = sanitizeData(value);
+            }
+        });
+        return result;
+    }
+    return data;
+}
+
+/**
  * Converts a FileMapping to a Firestore-compatible object.
- * We remove the 'data' array to store it separately in a sub-collection.
  */
 function toFirestore(file: FileMapping): any {
     const { data, ...metadata } = file;
-    const docData = { ...metadata };
+    let docData = { ...metadata };
     if (docData.fileContent instanceof ArrayBuffer) {
         docData.fileContent = Bytes.fromUint8Array(new Uint8Array(docData.fileContent)) as any;
     }
-    return docData;
+    return sanitizeData(docData);
 }
 
 /**
@@ -91,7 +110,7 @@ export async function putFile(file: FileMapping): Promise<void> {
             let batch = writeBatch(db);
             for (let i = 0; i < data.length; i++) {
                 const rowDoc = doc(rowsRef); // Auto-generated ID
-                batch.set(rowDoc, data[i]);
+                batch.set(rowDoc, sanitizeData(data[i]));
                 
                 if ((i + 1) % 500 === 0) {
                     await batch.commit();
