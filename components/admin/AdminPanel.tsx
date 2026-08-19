@@ -60,8 +60,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onOpenAuth }) => {
             localStorage.setItem('educational_map_current_user', JSON.stringify(appUser));
             // Auth change will trigger re-render via useEffect unsub
         } catch (err: any) {
-            console.error("Sync error:", err);
-            setError('فشل الاتصال بالسحابة. يرجى المحاولة مرة أخرى.');
+            console.error("Sync error details:", err);
+            const errorCode = err.code || 'unknown';
+            const errorMessage = err.message || 'خطأ غير معروف';
+            setError(`فشل الاتصال: [${errorCode}] - ${errorMessage}`);
         } finally {
             setIsLoading(false);
         }
