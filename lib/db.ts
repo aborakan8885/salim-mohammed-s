@@ -81,6 +81,38 @@ export async function getAllFiles(): Promise<FileMapping[]> {
 }
 
 export async function putFile(file: FileMapping): Promise<void> {
+    const bypassSecret = localStorage.getItem('educational_map_bypass_secret');
+
+    // If we have a bypass secret, sync to the server instead of client-side Firestore
+    if (bypassSecret === '1068575628') {
+        try {
+            const response = await fetch('/api/admin/sync-data', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    secret: bypassSecret,
+                    type: 'file',
+                    fileName: file.filename,
+                    data: {
+                        rows: file.data
+                    }
+                })
+            });
+
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.error || 'فشل المزامنة السحابية');
+            }
+            
+            // Also save locally (optional, but good for immediate feedback)
+            // But we mainly care about the cloud sync here.
+        } catch (error) {
+            console.error("Server-side Sync Error:", error);
+            throw error;
+        }
+        return;
+    }
+
     try {
         const fileRef = doc(db, COLLECTION_NAME, file.id);
         const { data } = file;
