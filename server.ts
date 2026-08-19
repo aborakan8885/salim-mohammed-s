@@ -38,7 +38,8 @@ async function startServer() {
     }
 
     app.use(cors());
-    app.use(express.json({ limit: '50mb' }));
+    app.use(express.json({ limit: '100mb' }));
+    app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
     app.get("/api/health", (req, res) => {
       res.json({ status: "ok", project: firebaseConfig.projectId });
@@ -129,6 +130,14 @@ async function startServer() {
       app.use(express.static(distPath));
       app.get("*", (req, res) => res.sendFile(path.join(distPath, "index.html")));
     }
+
+    app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+      console.error(">>> [EXPRESS ERROR]", err);
+      res.status(err.status || 500).json({ 
+        error: err.message || "حدث خطأ في الخادم أثناء معالجة الطلب",
+        code: err.code
+      });
+    });
 
     app.listen(PORT, "0.0.0.0", () => {
       console.log(`>>> [SERVER] SUCCESS: Ready at http://localhost:${PORT}`);

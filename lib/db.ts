@@ -142,11 +142,21 @@ export async function putFile(file: FileMapping): Promise<void> {
             });
 
             if (!response.ok) {
-                const err = await response.json();
-                throw new Error(err.error || 'فشل المزامنة السحابية');
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    const err = await response.json();
+                    throw new Error(err.error || `فشل المزامنة السحابية (Status: ${response.status})`);
+                } else {
+                    const text = await response.text();
+                    console.error("Non-JSON Server Error:", text);
+                    throw new Error(`خطأ في الخادم (Status: ${response.status}). قد يكون حجم الملف كبيراً جداً.`);
+                }
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Server-side Sync Error:", error);
+            if (error.message.includes('Unexpected token')) {
+                throw new Error('حدث خطأ غير متوقع في استجابة الخادم. يرجى المحاولة بحجم ملف أصغر.');
+            }
             throw error;
         }
         return;
