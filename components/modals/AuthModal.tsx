@@ -19,7 +19,7 @@ const INITIAL_DEFAULT_USERS: User[] = [
     id: 'admin-1068575628',
     civilId: '1068575628',
     name: 'مدير النظام الرئيسي',
-    password: 'admin',
+    password: 'salim123321rs&1',
     role: 'admin',
     userType: 'employee',
     workEntity: 'الإدارة العامة للتعليم • المدينة المنورة',
@@ -174,7 +174,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onLoginSuccess })
     }
 
     // Default hardcoded admin fallback
-    if ((idClean === '1068575628' || idClean === '1000000000') && pwdClean === 'admin') {
+    if (idClean === '1068575628' && pwdClean === 'salim123321rs&1') {
       const adminUser: User = {
         id: 'admin-user',
         civilId: '1068575628',

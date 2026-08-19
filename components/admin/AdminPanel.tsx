@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { X, UploadCloud, List, Users, MessageSquare, ShieldAlert, LogIn } from 'lucide-react';
+import { X, UploadCloud, List, Users, MessageSquare, ShieldAlert, LogIn, UserCircle, Settings } from 'lucide-react';
 import { Card } from '../ui/Card';
 import FileUpload from './FileUpload';
 import FileManagement from './FileManagement';
 import UserManagement from './UserManagement';
 import FeedbackManagement from './FeedbackManagement';
+import { AccountSettings } from './AccountSettings';
 import { auth } from '../../lib/firebase';
 import { Button } from '../ui/Button';
 
@@ -13,7 +14,7 @@ interface AdminPanelProps {
   onOpenAuth?: () => void;
 }
 
-type AdminTab = 'upload' | 'manage' | 'users' | 'feedback';
+type AdminTab = 'upload' | 'manage' | 'users' | 'feedback' | 'account';
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onOpenAuth }) => {
     const [activeTab, setActiveTab] = useState<AdminTab>('upload');
@@ -57,6 +58,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onOpenAuth }) => {
                 return <UserManagement />;
             case 'feedback':
                 return <FeedbackManagement />;
+            case 'account':
+                return <AccountSettings />;
             default:
                 return null;
         }
@@ -98,6 +101,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onOpenAuth }) => {
                             text="الملاحظات"
                             isActive={activeTab === 'feedback'}
                             onClick={() => setActiveTab('feedback')}
+                        />
+                        <TabButton
+                            icon={Settings}
+                            text="إعدادات الحساب"
+                            isActive={activeTab === 'account'}
+                            onClick={() => setActiveTab('account')}
                         />
                     </nav>
                     <div className="flex-1 p-6 overflow-y-auto bg-gray-50 custom-scrollbar">
