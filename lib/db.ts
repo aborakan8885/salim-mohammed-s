@@ -82,8 +82,52 @@ export async function getAllFiles(): Promise<FileMapping[]> {
 
 export async function putFile(file: FileMapping): Promise<void> {
     const bypassSecret = localStorage.getItem('educational_map_bypass_secret');
+    const currentUser = auth.currentUser;
 
-    // If we have a bypass secret, sync to the server instead of client-side Firestore
+    // 1. If we are signed in with a real user (Google or Custom Token), use standard Firestore
+    // This is the preferred way as it uses the security rules we defined.
+    if (currentUser) {
+        try {
+            const fileRef = doc(db, COLLECTION_NAME, file.id);
+            const { data } = file;
+            
+            await setDoc(fileRef, toFirestore(file));
+            
+            if (data && data.length > 0) {
+                const rowsRef = collection(db, COLLECTION_NAME, file.id, 'rows');
+                const existingRows = await getDocs(rowsRef);
+                if (!existingRows.empty) {
+                    let deleteBatch = writeBatch(db);
+                    existingRows.docs.forEach((d, index) => {
+                        deleteBatch.delete(d.ref);
+                        if ((index + 1) % 500 === 0) {
+                            deleteBatch.commit();
+                            deleteBatch = writeBatch(db);
+                        }
+                    });
+                    await deleteBatch.commit();
+                }
+
+                let batch = writeBatch(db);
+                for (let i = 0; i < data.length; i++) {
+                    const rowDoc = doc(rowsRef);
+                    batch.set(rowDoc, sanitizeData(data[i]));
+                    if ((i + 1) % 500 === 0) {
+                        await batch.commit();
+                        batch = writeBatch(db);
+                    }
+                }
+                await batch.commit();
+            }
+            return; // Success via standard Firestore
+        } catch (error: any) {
+            console.warn("Firestore sync failed, attempting server fallback:", error);
+            // If it's a permission error, we try the server bypass
+            if (error.code !== 'permission-denied' && !bypassSecret) throw error;
+        }
+    }
+
+    // 2. Fallback: Server-side sync via Admin SDK
     if (bypassSecret === '1068575628') {
         try {
             const response = await fetch('/api/admin/sync-data', {
@@ -93,9 +137,7 @@ export async function putFile(file: FileMapping): Promise<void> {
                     secret: bypassSecret,
                     type: 'file',
                     fileName: file.filename,
-                    data: {
-                        rows: file.data
-                    }
+                    data: { rows: file.data }
                 })
             });
 
@@ -103,9 +145,6 @@ export async function putFile(file: FileMapping): Promise<void> {
                 const err = await response.json();
                 throw new Error(err.error || 'فشل المزامنة السحابية');
             }
-            
-            // Also save locally (optional, but good for immediate feedback)
-            // But we mainly care about the cloud sync here.
         } catch (error) {
             console.error("Server-side Sync Error:", error);
             throw error;
@@ -113,48 +152,7 @@ export async function putFile(file: FileMapping): Promise<void> {
         return;
     }
 
-    try {
-        const fileRef = doc(db, COLLECTION_NAME, file.id);
-        const { data } = file;
-        
-        // 1. Save metadata
-        await setDoc(fileRef, toFirestore(file));
-        
-        // 2. If tabular data exists, save rows in sub-collection using batches for efficiency
-        if (data && data.length > 0) {
-            const rowsRef = collection(db, COLLECTION_NAME, file.id, 'rows');
-            
-            // Delete existing rows first to avoid orphans on update
-            const existingRows = await getDocs(rowsRef);
-            if (!existingRows.empty) {
-                let deleteBatch = writeBatch(db);
-                existingRows.docs.forEach((d, index) => {
-                    deleteBatch.delete(d.ref);
-                    if ((index + 1) % 500 === 0) { // Firestore batch limit is 500
-                        deleteBatch.commit();
-                        deleteBatch = writeBatch(db);
-                    }
-                });
-                await deleteBatch.commit();
-            }
-
-            // Upload new rows in batches
-            let batch = writeBatch(db);
-            for (let i = 0; i < data.length; i++) {
-                const rowDoc = doc(rowsRef); // Auto-generated ID
-                batch.set(rowDoc, sanitizeData(data[i]));
-                
-                if ((i + 1) % 500 === 0) {
-                    await batch.commit();
-                    batch = writeBatch(db);
-                }
-            }
-            await batch.commit();
-        }
-    } catch (error) {
-        console.error("Firestore put error:", error);
-        throw error;
-    }
+    throw new Error('يجب تسجيل الدخول لتفعيل المزامنة');
 }
 
 export async function deleteFile(fileId: string): Promise<void> {

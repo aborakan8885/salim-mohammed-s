@@ -7,7 +7,7 @@ import UserManagement from './UserManagement';
 import FeedbackManagement from './FeedbackManagement';
 import { AccountSettings } from './AccountSettings';
 import { auth } from '../../lib/firebase';
-import { GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, signInWithCustomToken } from 'firebase/auth';
 import { Button } from '../ui/Button';
 import type { User } from '../../types';
 
@@ -42,18 +42,39 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onOpenAuth }) => {
         return () => unsub();
     }, []);
 
-    const handleBypassLogin = (e: React.FormEvent) => {
+    const handleBypassLogin = async (e: React.FormEvent) => {
       e.preventDefault();
-      if (civilId === '1068575628') {
+      setIsLoading(true);
+      setError(null);
+      
+      try {
+        const response = await fetch('/api/admin/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ secret: civilId })
+        });
+
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.error || 'فشل التحقق من الهوية');
+        }
+
+        const { token } = await response.json();
+        
+        // Sign in with Firebase Custom Token
+        // This is the "Hardcoded User" solution - the server grants access based on the ID
+        await signInWithCustomToken(auth, token);
+        
         localStorage.setItem('educational_map_bypass_secret', civilId);
         
         const appUser: User = {
-            id: 'admin-bypass',
-            name: 'مدير النظام (وضع التخطي)',
+            id: auth.currentUser?.uid || 'admin-bypass',
+            name: 'مدير النظام المعتمد',
             role: 'admin',
             userType: 'employee',
-            workEntity: 'الإدارة العامة للتعليم',
+            workEntity: 'الإدارة العامة للتعليم (دخول مباشر)',
             status: 'active',
+            email: 'aborakan8885@gmail.com',
             permissions: {
                 visibleLayers: ['schools', 'kmz'],
                 canViewCoordinates: true,
@@ -63,8 +84,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onOpenAuth }) => {
         };
         localStorage.setItem('educational_map_current_user', JSON.stringify(appUser));
         setIsFirebaseAuthed(true);
-      } else {
-        setError('رقم الهوية غير صحيح');
+      } catch (err: any) {
+        console.error("Bypass login error:", err);
+        setError(err.message || 'حدث خطأ أثناء الدخول');
+      } finally {
+        setIsLoading(false);
       }
     };
 

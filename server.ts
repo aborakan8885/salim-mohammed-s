@@ -4,6 +4,7 @@ import cors from "cors";
 import { createServer as createViteServer } from "vite";
 import { initializeApp, getApps, getApp } from "firebase-admin/app";
 import { getFirestore, FieldValue } from "firebase-admin/firestore";
+import { getAuth } from "firebase-admin/auth";
 import fs from "fs";
 
 // Read config manually
@@ -41,6 +42,44 @@ async function startServer() {
 
     app.get("/api/health", (req, res) => {
       res.json({ status: "ok", project: firebaseConfig.projectId });
+    });
+
+    // Admin Login via Civil ID -> Returns Firebase Custom Token
+    app.post("/api/admin/login", async (req, res) => {
+      const { secret } = req.body;
+      if (secret !== "1068575628") return res.status(403).json({ error: "Unauthorized" });
+
+      try {
+        const adminEmail = "aborakan8885@gmail.com";
+        const authAdmin = getAuth();
+        
+        // Create or get user to ensure UID exists
+        let userRecord;
+        try {
+          userRecord = await authAdmin.getUserByEmail(adminEmail);
+        } catch (e: any) {
+          if (e.code === 'auth/user-not-found') {
+            userRecord = await authAdmin.createUser({
+              email: adminEmail,
+              displayName: "مدير النظام الرئيسي",
+            });
+          } else {
+            throw e;
+          }
+        }
+
+        // Generate Custom Token with email claim to satisfy firestore.rules
+        const customToken = await authAdmin.createCustomToken(userRecord.uid, {
+          admin: true,
+          role: 'admin',
+          email: adminEmail
+        });
+
+        return res.json({ success: true, token: customToken });
+      } catch (e: any) {
+        console.error(">>> [LOGIN ERROR]", e);
+        res.status(500).json({ error: e.message });
+      }
     });
 
     app.post("/api/admin/sync-data", async (req, res) => {
