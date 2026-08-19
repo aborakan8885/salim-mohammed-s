@@ -41,12 +41,26 @@ async function startServer() {
     app.use(express.json({ limit: '100mb' }));
     app.use(express.urlencoded({ limit: '100mb', extended: true }));
 
-    app.get("/api/health", (req, res) => {
-      res.json({ status: "ok", project: firebaseConfig.projectId });
+    // --- DIAGNOSTIC LOGGING ---
+    app.use((req, res, next) => {
+      if (req.url.startsWith('/api')) {
+        console.log(`>>> [API] ${req.method} ${req.url}`);
+      }
+      next();
+    });
+
+    // API Health
+    app.all("/api/health", (req, res) => {
+      res.json({ status: "ok", project: firebaseConfig.projectId, method: req.method });
     });
 
     // Admin Login via Civil ID -> Returns Firebase Custom Token (if possible)
-    app.post("/api/admin/login", async (req, res) => {
+    app.all("/api/admin/login", async (req, res) => {
+      if (req.method !== 'POST') {
+        console.warn(`>>> [AUTH] Method ${req.method} not allowed on login`);
+        return res.status(405).json({ error: "Method Not Allowed. Please use POST." });
+      }
+
       const { secret } = req.body;
       if (secret !== "1068575628") return res.status(403).json({ error: "Unauthorized" });
 
@@ -77,8 +91,7 @@ async function startServer() {
           });
           return res.json({ success: true, token: customToken });
         } catch (tokenError: any) {
-          console.warn(">>> [LOGIN WARNING] Could not create custom token (Identity API might be disabled):", tokenError.message);
-          // Fallback: Return success but without token. The UI will use bypass mode.
+          console.warn(">>> [LOGIN WARNING] Could not create custom token:", tokenError.message);
           return res.json({ 
             success: true, 
             token: null, 
@@ -92,7 +105,11 @@ async function startServer() {
       }
     });
 
-    app.post("/api/admin/sync-data", async (req, res) => {
+    app.all("/api/admin/sync-data", async (req, res) => {
+      if (req.method !== 'POST') {
+        return res.status(405).json({ error: "Method Not Allowed. Please use POST." });
+      }
+      
       const { secret, type, data, fileName } = req.body;
       if (secret !== "1068575628") return res.status(403).json({ error: "Unauthorized" });
       if (!firestore) return res.status(503).json({ error: "Cloud Sync Service Unavailable" });
