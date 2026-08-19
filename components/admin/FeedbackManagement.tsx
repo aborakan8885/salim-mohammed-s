@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MessageSquare, Download, Trash2, Search, Calendar, User, Smartphone, AlertCircle, FileSpreadsheet } from 'lucide-react';
-import { db } from '../../lib/firebase';
-import { collection, query, orderBy, onSnapshot, deleteDoc, doc } from 'firebase/firestore';
-import type { Feedback } from '../../types';
+import { Feedback } from '../../types';
 import { Button } from '../ui/Button';
 import { ConfirmationModal } from '../modals/ConfirmationModal';
 import * as XLSX from 'xlsx';
@@ -13,41 +11,37 @@ const FeedbackManagement: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [feedbackToDelete, setFeedbackToDelete] = useState<Feedback | null>(null);
 
-    useEffect(() => {
-        let unsubscribe: () => void = () => {};
-
-        if (!db) {
-            setLoading(false);
-            return;
-        }
-
+    const loadFeedbacks = async () => {
+        setLoading(true);
         try {
-            const q = query(collection(db, 'feedbacks'), orderBy('createdAt', 'desc'));
-            
-            unsubscribe = onSnapshot(q, (snapshot) => {
-                const feedbackData: Feedback[] = snapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                } as Feedback));
-                setFeedbacks(feedbackData);
-                setLoading(false);
-            }, (error) => {
-                console.error("Firestore subscription error:", error);
-                setLoading(false);
-            });
+            const secret = localStorage.getItem('educational_map_bypass_secret');
+            const response = await fetch(`/api/admin/feedback?secret=${secret}`);
+            if (response.ok) {
+                const data = await response.json();
+                setFeedbacks(data);
+            }
         } catch (err) {
-            console.error("Failed to setup feedback listener:", err);
+            console.error("Failed to load feedbacks:", err);
+        } finally {
             setLoading(false);
         }
+    };
 
-        return () => unsubscribe();
+    useEffect(() => {
+        loadFeedbacks();
     }, []);
 
     const handleDeleteConfirm = async () => {
-        if (!feedbackToDelete?.id || !db) return;
+        if (!feedbackToDelete?.id) return;
         try {
-            await deleteDoc(doc(db, 'feedbacks', feedbackToDelete.id));
-            setFeedbackToDelete(null);
+            const secret = localStorage.getItem('educational_map_bypass_secret');
+            const response = await fetch(`/api/admin/feedback/${feedbackToDelete.id}?secret=${secret}`, {
+                method: 'DELETE'
+            });
+            if (response.ok) {
+                setFeedbacks(prev => prev.filter(f => f.id !== feedbackToDelete.id));
+                setFeedbackToDelete(null);
+            }
         } catch (error) {
             console.error("Error deleting feedback:", error);
         }

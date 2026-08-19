@@ -124,6 +124,20 @@ async function startServer() {
     }
   });
 
+  app.delete("/api/admin/feedback/:id", async (req, res) => {
+    const { secret } = req.query;
+    if (secret !== "1068575628") return res.status(403).json({ error: "Unauthorized" });
+
+    try {
+      const dbData = JSON.parse(await fs.readFile(FEEDBACK_DB, "utf-8"));
+      const filtered = dbData.filter((f: any) => f.id !== req.params.id);
+      await fs.writeFile(FEEDBACK_DB, JSON.stringify(filtered, null, 2));
+      res.json({ success: true });
+    } catch (e) {
+      res.status(500).json({ error: "Delete failed" });
+    }
+  });
+
   app.get("/api/admin/feedback", async (req, res) => {
     const { secret } = req.query;
     if (secret !== "1068575628") return res.status(403).json({ error: "Unauthorized" });

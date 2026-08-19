@@ -6,8 +6,7 @@ import FileManagement from './FileManagement';
 import UserManagement from './UserManagement';
 import FeedbackManagement from './FeedbackManagement';
 import { AccountSettings } from './AccountSettings';
-import { auth } from '../../lib/firebase';
-import { Button } from '../ui/Button';
+// Local-Only: Removed auth import
 import type { User } from '../../types';
 
 interface AdminPanelProps {
@@ -25,10 +24,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onOpenAuth }) => {
     const [civilId, setCivilId] = useState('1068575628');
 
     useEffect(() => {
-        const unsub = auth.onAuthStateChanged((user: any) => {
-            setIsAuthed(!!user);
-        });
-        return () => unsub();
+        // Local-Only Check
+        const bypass = localStorage.getItem('educational_map_bypass_secret');
+        if (bypass === '1068575628') {
+            setIsAuthed(true);
+        }
     }, []);
 
     const handleLocalLogin = async (e: React.FormEvent) => {

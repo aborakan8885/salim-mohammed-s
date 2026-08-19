@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import { X, MessageSquare, Phone, MessageCircle, Send, User, Smartphone, Code2, Sparkles, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Button } from '../ui/Button';
-import { db } from '../../lib/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { sanitizeString } from '../../lib/security';
 
 interface DeveloperContactModalProps {
@@ -22,18 +20,10 @@ export const DeveloperContactModal: React.FC<DeveloperContactModalProps> = ({ is
     e.preventDefault();
     if (!message.trim()) return;
 
-    if (!db) {
-      console.error('Firestore is not initialized. Please check your configuration.');
-      setStatus('error');
-      return;
-    }
-
     setStatus('sending');
     
     try {
-      if (!db) throw new Error('Database not initialized');
-
-      // Defensive coding: Sanitize inputs before database submission
+      // Defensive coding: Sanitize inputs before submission
       const sanitizedName = sanitizeString(name) || 'مستفيد غير معروف';
       const sanitizedPhone = sanitizeString(phone);
       const sanitizedMessage = sanitizeString(message);
@@ -42,12 +32,17 @@ export const DeveloperContactModal: React.FC<DeveloperContactModalProps> = ({ is
         throw new Error('Message is empty after sanitization');
       }
 
-      await addDoc(collection(db, 'feedbacks'), {
-        name: sanitizedName,
-        phone: sanitizedPhone,
-        message: sanitizedMessage,
-        createdAt: serverTimestamp(),
+      const response = await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: sanitizedName,
+          phone: sanitizedPhone,
+          message: sanitizedMessage
+        })
       });
+
+      if (!response.ok) throw new Error('Failed to send feedback');
       
       setStatus('success');
       setTimeout(() => {
@@ -60,8 +55,6 @@ export const DeveloperContactModal: React.FC<DeveloperContactModalProps> = ({ is
     } catch (error) {
       console.error('Error sending feedback:', error);
       setStatus('error');
-      // No automatic reset to idle here to let user see error, 
-      // but ensure they can click again or cancel
     }
   };
 

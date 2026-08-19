@@ -11,8 +11,7 @@ import type { EducationalPlace, FilterState, Category, User, FileMapping, School
 import { Search, Menu, SlidersHorizontal } from 'lucide-react';
 import { getAllFiles, deleteFile, putFile } from './lib/db';
 import AdminPanel from './components/admin/AdminPanel';
-import { auth } from './lib/firebase';
-import { signOut } from 'firebase/auth';
+// Local-Only Mode: Removed Firebase Auth import
 
 
 // --- SPATIAL ANALYSIS HELPERS ---
@@ -1529,43 +1528,44 @@ function AppContent() {
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
   useEffect(() => {
-    // Listen for Firebase Auth changes to sync with App state
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      if (user) {
-        const appUser: User = {
-          id: user.uid,
-          name: user.displayName || 'مسؤول النظام',
-          role: user.email === 'aborakan8885@gmail.com' ? 'admin' : 'user',
+    // Local bypass check based on storage
+    const syncUser = () => {
+      const savedUserStr = localStorage.getItem('educational_map_current_user');
+      const bypass = localStorage.getItem('educational_map_bypass_secret');
+      
+      if (bypass === '1068575628') {
+        const adminUser: User = {
+          id: 'admin-local',
+          name: 'مدير النظام (دخول محلي)',
+          role: 'admin',
           userType: 'employee',
-          workEntity: user.email === 'aborakan8885@gmail.com' ? 'إدارة النظام السحابية' : 'مستخدم خارجي',
+          workEntity: 'الإدارة العامة للتعليم',
           status: 'active',
+          email: 'aborakan8885@gmail.com',
           permissions: {
             visibleLayers: ['schools', 'kmz'],
-            canViewCoordinates: user.email === 'aborakan8885@gmail.com',
+            canViewCoordinates: true,
             canExportReports: true,
             canUseSurroundingAnalysis: true
           }
         };
-        setCurrentUser(appUser);
-        localStorage.setItem('educational_map_current_user', JSON.stringify(appUser));
-      } else {
-        // IMPROVED LOGIC: Only clear if it was a Firebase user (UID > 20 chars)
-        // This prevents kicking out local users when Firebase auth isn't yet initialized or is in transition
-        const savedUserStr = localStorage.getItem('educational_map_current_user');
-        if (savedUserStr) {
-          try {
-            const savedUser = JSON.parse(savedUserStr);
-            if (savedUser && savedUser.id && savedUser.id.length > 20) {
-              setCurrentUser(null);
-              localStorage.removeItem('educational_map_current_user');
-            }
-          } catch (e) {
-            console.error("Auth sync error:", e);
-          }
+        setCurrentUser(adminUser);
+        localStorage.setItem('educational_map_current_user', JSON.stringify(adminUser));
+      } else if (savedUserStr) {
+        try {
+          setCurrentUser(JSON.parse(savedUserStr));
+        } catch {
+          setCurrentUser(null);
         }
+      } else {
+        setCurrentUser(null);
       }
-    });
-    return () => unsubscribe();
+    };
+
+    syncUser();
+    // Listen for storage changes in case of cross-tab login/logout
+    window.addEventListener('storage', syncUser);
+    return () => window.removeEventListener('storage', syncUser);
   }, []);
 
   const { allPlaces, fileMappings, isLoading: isDataLoading } = useData();
@@ -1717,7 +1717,10 @@ function AppContent() {
   const handleLogout = async () => {
     setCurrentUser(null);
     try {
-      await signOut(auth);
+      // Local-Only: Just clear storage and reload
+      localStorage.removeItem('educational_map_bypass_secret');
+      localStorage.removeItem('educational_map_current_user');
+      window.location.reload();
       localStorage.removeItem('educational_map_current_user');
     } catch (e) {
       console.error("Failed to remove user from storage", e);
