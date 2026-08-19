@@ -28,11 +28,8 @@ async function startServer() {
         console.log(">>> [FIREBASE] Admin SDK initialized.");
       }
       
-      const db = firebaseConfig.firestoreDatabaseId 
-        ? getFirestore(getApp(), firebaseConfig.firestoreDatabaseId)
-        : getFirestore();
-      
-      firestore = db;
+      // Get firestore instance for the specific database ID
+      firestore = getFirestore(firebaseConfig.firestoreDatabaseId);
     } catch (firebaseError) {
       console.warn(">>> [FIREBASE] WARNING: Could not initialize Admin. Admin APIs will be disabled.", firebaseError);
     }
@@ -43,8 +40,17 @@ async function startServer() {
 
     // --- DIAGNOSTIC LOGGING ---
     app.use((req, res, next) => {
+      // Explicit CORS for all /api routes
+      res.header('Access-Control-Allow-Origin', '*');
+      res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, PUT, PATCH, DELETE');
+      res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+      
       if (req.url.startsWith('/api')) {
         console.log(`>>> [API] ${req.method} ${req.url}`);
+      }
+      
+      if (req.method === 'OPTIONS') {
+        return res.sendStatus(204);
       }
       next();
     });
@@ -56,11 +62,6 @@ async function startServer() {
 
     // Admin Login via Civil ID -> Returns Firebase Custom Token (if possible)
     app.all("/api/admin/login", async (req, res) => {
-      // Handle CORS preflight explicitly if needed, though cors() middleware should handle it
-      if (req.method === 'OPTIONS') {
-        return res.status(204).end();
-      }
-
       if (req.method !== 'POST') {
         return res.status(405).json({ error: "Method Not Allowed. Please use POST." });
       }
@@ -118,10 +119,6 @@ async function startServer() {
     });
 
     app.all("/api/admin/sync-data", async (req, res) => {
-      if (req.method === 'OPTIONS') {
-        return res.status(204).end();
-      }
-
       if (req.method !== 'POST') {
         return res.status(405).json({ error: "Method Not Allowed. Please use POST." });
       }
@@ -159,10 +156,19 @@ async function startServer() {
       }
     });
 
+    // Catch-all for other /api routes to avoid 404/405 from static handler
+    app.all("/api/*all", (req, res) => {
+      console.warn(`>>> [API] Unhandled request: ${req.method} ${req.url}`);
+      res.status(404).json({ error: `API route not found: ${req.method} ${req.url}` });
+    });
+
     if (process.env.NODE_ENV !== "production") {
       console.log(">>> [VITE] Loading middleware...");
       const vite = await createViteServer({
-        server: { middlewareMode: true },
+        server: { 
+          middlewareMode: true,
+          hmr: false // Disable HMR to avoid port conflicts
+        },
         appType: "spa",
       });
       app.use(vite.middlewares);
@@ -170,7 +176,7 @@ async function startServer() {
     } else {
       const distPath = path.join(process.cwd(), "dist");
       app.use(express.static(distPath));
-      app.get("*", (req, res) => res.sendFile(path.join(distPath, "index.html")));
+      app.get("*all", (req, res) => res.sendFile(path.join(distPath, "index.html")));
     }
 
     app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

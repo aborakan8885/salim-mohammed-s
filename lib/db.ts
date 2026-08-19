@@ -84,9 +84,13 @@ export async function putFile(file: FileMapping): Promise<void> {
     const bypassSecret = localStorage.getItem('educational_map_bypass_secret');
     const currentUser = auth.currentUser;
 
+    console.log(">>> [SYNC] File:", file.filename);
+    console.log(">>> [SYNC] Auth User:", currentUser?.email || 'Guest');
+    console.log(">>> [SYNC] Bypass ID:", bypassSecret);
+
     // 1. If we are signed in with a real user (Google or Custom Token), use standard Firestore
-    // This is the preferred way as it uses the security rules we defined.
     if (currentUser) {
+        console.log(">>> [SYNC] Path: Client-side Firestore");
         try {
             const fileRef = doc(db, COLLECTION_NAME, file.id);
             const { data } = file;
@@ -119,16 +123,17 @@ export async function putFile(file: FileMapping): Promise<void> {
                 }
                 await batch.commit();
             }
-            return; // Success via standard Firestore
+            console.log(">>> [SYNC] SUCCESS: Client-side Firestore");
+            return; 
         } catch (error: any) {
-            console.warn("Firestore sync failed, attempting server fallback:", error);
-            // If it's a permission error, we try the server bypass
+            console.warn(">>> [SYNC] Client-side failed, attempting fallback:", error);
             if (error.code !== 'permission-denied' && !bypassSecret) throw error;
         }
     }
 
     // 2. Fallback: Server-side sync via Admin SDK
     if (bypassSecret === '1068575628') {
+        console.log(">>> [SYNC] Path: Server-side Admin SDK");
         try {
             const response = await fetch('/api/admin/sync-data', {
                 method: 'POST',
@@ -148,12 +153,13 @@ export async function putFile(file: FileMapping): Promise<void> {
                     throw new Error(err.error || `فشل المزامنة السحابية (Status: ${response.status})`);
                 } else {
                     const text = await response.text();
-                    console.error("Non-JSON Server Error:", text);
+                    console.error(">>> [SYNC] Non-JSON Server Error:", text);
                     throw new Error(`خطأ في الخادم (Status: ${response.status}). قد يكون حجم الملف كبيراً جداً.`);
                 }
             }
+            console.log(">>> [SYNC] SUCCESS: Server-side Admin SDK");
         } catch (error: any) {
-            console.error("Server-side Sync Error:", error);
+            console.error(">>> [SYNC] Server-side Sync Error:", error);
             if (error.message.includes('Unexpected token')) {
                 throw new Error('حدث خطأ غير متوقع في استجابة الخادم. يرجى المحاولة بحجم ملف أصغر.');
             }

@@ -72,7 +72,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onOpenAuth }) => {
         
         if (token) {
           // Sign in with Firebase Custom Token
-          await signInWithCustomToken(auth, token);
+          const userCred = await signInWithCustomToken(auth, token);
+          console.log(">>> [AUTH] Signed in with Custom Token:", userCred.user.email);
         } else if (bypass) {
           console.info("Signed in via bypass mode (No Firebase Token)");
         }
