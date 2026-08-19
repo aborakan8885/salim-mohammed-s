@@ -11,6 +11,7 @@ import type { EducationalPlace, FilterState, Category, User, FileMapping, School
 import { Search, Menu, SlidersHorizontal } from 'lucide-react';
 import { getAllFiles, deleteFile, putFile } from './lib/db';
 import AdminPanel from './components/admin/AdminPanel';
+import type * as GeoJSON from 'geojson';
 // Local-Only Mode: Removed Firebase Auth import
 
 

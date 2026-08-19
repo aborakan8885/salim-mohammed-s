@@ -4,12 +4,8 @@ import { X, FileText, Loader2, FileType2, FileBarChart2, Presentation, Sheet, Ma
 import { Button } from './ui/Button';
 import { Card } from './ui/Card';
 import { Separator } from './ui/Separator';
+import * as XLSX from 'xlsx';
 import type { EducationalPlace, FileMapping, Category, FilterState, SchoolFilters, EarlyChildhoodFilters, DisabilitySupportFilters, SpecialEducationFilters, LandFilters, ProjectFilters, BuildingFilters } from '../types';
-
-// Declare global types for libraries loaded via script tags
-declare const jspdf: any;
-declare const docx: any;
-declare const PptxGenJS: any;
 
 const GOVERNORATES = ['المدينة المنورة', 'ينبع', 'العلا', 'المهد', 'الحناكية', 'خيبر', 'بدر', 'وادي الفرع'];
 
@@ -447,10 +443,10 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({
                 });
             }
 
-            const worksheet = window.XLSX.utils.json_to_sheet(dataForSheet);
-            const workbook = window.XLSX.utils.book_new();
-            window.XLSX.utils.book_append_sheet(workbook, worksheet, `تقرير ${activeTab}`);
-            window.XLSX.writeFile(workbook, `report_${activeTab}.xlsx`);
+            const worksheet = XLSX.utils.json_to_sheet(dataForSheet);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, `تقرير ${activeTab}`);
+            XLSX.writeFile(workbook, `report_${activeTab}.xlsx`);
 
         } else {
              alert(`التصدير بصيغة ${format.toUpperCase()} قيد التطوير.`);

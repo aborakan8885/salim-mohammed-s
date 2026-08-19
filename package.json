@@ -17,6 +17,7 @@
     "firebase-admin": "^14.2.0",
     "lucide-react": "^0.546.0",
     "motion": "^13.1.0",
+    "multer": "^2.2.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "tailwind-merge": "^3.6.0",
@@ -24,6 +25,8 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@types/geojson": "^7946.0.16",
+    "@types/multer": "^2.2.0",
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
     "typescript": "~5.8.2",

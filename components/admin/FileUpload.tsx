@@ -1,9 +1,10 @@
 import React, { useState, useCallback } from 'react';
 import { UploadCloud, File, X, Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useData } from '../../App';
-import { putFile, getAllFiles } from '../../lib/db';
+import { putFile, getAllFiles, uploadFileToServer } from '../../lib/db';
 import type { FileMapping, Category } from '../../types';
 import { Button } from '../ui/Button';
+import * as XLSX from 'xlsx';
 
 // Helper function to read file as ArrayBuffer
 const readFileAsArrayBuffer = (file: File): Promise<ArrayBuffer> => {
@@ -83,10 +84,10 @@ const FileUpload: React.FC = () => {
             
             if (fileType === 'tabular') {
                 const buffer = await readFileAsArrayBuffer(file);
-                const workbook = window.XLSX.read(buffer, { type: 'buffer' });
+                const workbook = XLSX.read(buffer, { type: 'buffer' });
                 const sheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[sheetName];
-                const rawData = window.XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+                const rawData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
                 
                 // Clean data to minimize size
                 const cleanData = rawData.map((row: any) => {
@@ -118,7 +119,7 @@ const FileUpload: React.FC = () => {
                 await Promise.all(existingFiles.map(f => f.isBoundaryLayer ? putFile({ ...f, isBoundaryLayer: false }) : Promise.resolve()));
             }
 
-            const finalMapping: FileMapping = {
+            const finalMapping: Partial<FileMapping> = {
                 id: `${Date.now()}-${Math.random()}`,
                 filename: file.name,
                 category: 'unassigned',
@@ -132,7 +133,8 @@ const FileUpload: React.FC = () => {
                 ...fileMapping
             };
 
-            await putFile(finalMapping);
+            // Use the new FormData-based upload
+            await uploadFileToServer(file, finalMapping);
             await loadMapData();
 
             setStatus('success');

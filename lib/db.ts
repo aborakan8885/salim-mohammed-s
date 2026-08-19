@@ -43,6 +43,30 @@ export async function putFile(file: FileMapping): Promise<void> {
     }
 }
 
+export async function uploadFileToServer(file: File, metadata: Partial<FileMapping>): Promise<void> {
+    const bypassSecret = localStorage.getItem('educational_map_bypass_secret') || '1068575628';
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('secret', bypassSecret);
+    formData.append('metadata', JSON.stringify(metadata));
+
+    try {
+        const response = await fetch('/api/admin/upload', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.error || `فشل رفع الملف (Status: ${response.status})`);
+        }
+        console.log(">>> [LOCAL DB] SUCCESS: File uploaded to server.");
+    } catch (error: any) {
+        console.error(">>> [LOCAL DB] Upload Error:", error);
+        throw error;
+    }
+}
+
 export async function deleteFile(fileId: string): Promise<void> {
     const bypassSecret = localStorage.getItem('educational_map_bypass_secret') || '1068575628';
     try {
