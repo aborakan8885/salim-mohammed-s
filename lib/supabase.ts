@@ -42,7 +42,7 @@ export function getSupabaseClient(): SupabaseClient | null {
 // ----------------------------------------------------
 // SQL Schema definition for 1-click execution in Supabase
 // ----------------------------------------------------
-export const SUPABASE_SQL_SCHEMA = `-- 1. إنشاء جدول الملفات والخرائط (باسم educational_files و files)
+export const SUPABASE_SQL_SCHEMA = `-- 1. إنشاء جداول الملفات
 CREATE TABLE IF NOT EXISTS public.educational_files (
     id TEXT PRIMARY KEY,
     filename TEXT NOT NULL,
@@ -61,7 +61,6 @@ CREATE TABLE IF NOT EXISTS public.educational_files (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- إنشاء جدول files أيضاً لضمان التوافق مع أي استعلام
 CREATE TABLE IF NOT EXISTS public.files (
     id TEXT PRIMARY KEY,
     filename TEXT NOT NULL,
@@ -80,7 +79,7 @@ CREATE TABLE IF NOT EXISTS public.files (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- إزالة أي قيود فريدة سابقة قد تمنع رفع عدة ملفات
+-- إزالة أي قيود فريدة سابقة
 ALTER TABLE public.educational_files DROP CONSTRAINT IF EXISTS educational_files_category_key;
 ALTER TABLE public.educational_files DROP CONSTRAINT IF EXISTS educational_files_filename_key;
 ALTER TABLE public.educational_files DROP CONSTRAINT IF EXISTS educational_files_file_type_key;
@@ -100,7 +99,7 @@ CREATE TABLE IF NOT EXISTS public.feedback (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 3. إنشاء جدول منسوبي الإدارة والمستخدمين
+-- 3. إنشاء جدول المستخدمين
 CREATE TABLE IF NOT EXISTS public.users (
     id TEXT PRIMARY KEY,
     civil_id TEXT,
@@ -115,41 +114,24 @@ CREATE TABLE IF NOT EXISTS public.users (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 4. تفعيل سياسات الأمان (Row Level Security) مع السماح بالقراءة والكتابة للجميع
-ALTER TABLE public.educational_files ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.files ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.feedback ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+-- 4. تعطيل سياسات الأمان (RLS) مؤقتاً لضمان الكتابة من أي جهاز (كما طلب المستخدم)
+ALTER TABLE public.educational_files DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.files DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.feedback DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.users DISABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "Allow public read on educational_files" ON public.educational_files;
-CREATE POLICY "Allow public read on educational_files" ON public.educational_files FOR SELECT USING (true);
-DROP POLICY IF EXISTS "Allow public write on educational_files" ON public.educational_files;
-CREATE POLICY "Allow public write on educational_files" ON public.educational_files FOR ALL USING (true);
+-- في حال رغبت في الإبقاء على RLS وتفعيل الوصول العام (Anonymous Write):
+-- DROP POLICY IF EXISTS "Allow all" ON public.educational_files;
+-- CREATE POLICY "Allow all" ON public.educational_files FOR ALL USING (true) WITH CHECK (true);
 
-DROP POLICY IF EXISTS "Allow public read on files" ON public.files;
-CREATE POLICY "Allow public read on files" ON public.files FOR SELECT USING (true);
-DROP POLICY IF EXISTS "Allow public write on files" ON public.files;
-CREATE POLICY "Allow public write on files" ON public.files FOR ALL USING (true);
-
-DROP POLICY IF EXISTS "Allow public read on feedback" ON public.feedback;
-CREATE POLICY "Allow public read on feedback" ON public.feedback FOR SELECT USING (true);
-DROP POLICY IF EXISTS "Allow public write on feedback" ON public.feedback;
-CREATE POLICY "Allow public write on feedback" ON public.feedback FOR ALL USING (true);
-
-DROP POLICY IF EXISTS "Allow public read on users" ON public.users;
-CREATE POLICY "Allow public read on users" ON public.users FOR SELECT USING (true);
-DROP POLICY IF EXISTS "Allow public write on users" ON public.users;
-CREATE POLICY "Allow public write on users" ON public.users FOR ALL USING (true);
-
--- 5. إنشاء مخزن الملفات السحابي (Storage Bucket)
+-- 5. إنشاء وتأمين مخزن الملفات السحابي (Storage Bucket)
 INSERT INTO storage.buckets (id, name, public) 
 VALUES ('educational-files', 'educational-files', true)
 ON CONFLICT (id) DO NOTHING;
 
-DROP POLICY IF EXISTS "Allow public read on storage" ON storage.objects;
-CREATE POLICY "Allow public read on storage" ON storage.objects FOR SELECT USING (bucket_id = 'educational-files');
-DROP POLICY IF EXISTS "Allow public upload on storage" ON storage.objects;
-CREATE POLICY "Allow public upload on storage" ON storage.objects FOR ALL WITH CHECK (bucket_id = 'educational-files');
+-- سياسات تخزين الملفات (للسماح بالرفع العام)
+DROP POLICY IF EXISTS "Allow public access" ON storage.objects;
+CREATE POLICY "Allow public access" ON storage.objects FOR ALL USING (bucket_id = 'educational-files') WITH CHECK (bucket_id = 'educational-files');
 `;
 
 // ----------------------------------------------------
@@ -222,7 +204,7 @@ export async function fetchFilesFromSupabase(): Promise<FileMapping[] | null> {
  */
 export async function insertFileToSupabase(file: FileMapping): Promise<boolean> {
   const supabase = getSupabaseClient();
-  if (!supabase) return false;
+  if (!supabase) throw new Error("Supabase client is not initialized. Please check credentials.");
 
   try {
     const payload = {
@@ -242,24 +224,25 @@ export async function insertFileToSupabase(file: FileMapping): Promise<boolean> 
       file_url: (file as any).fileUrl || null
     };
 
-    // Insert into educational_files
-    try {
-      const { error } = await supabase.from('educational_files').upsert(payload, { onConflict: 'id' });
-      if (error) console.warn("Supabase educational_files upsert notice:", error);
-    } catch (e) {
-      console.warn("educational_files write err:", e);
+    console.log(">>> [SUPABASE] Attempting to INSERT file metadata into cloud database:", file.filename);
+
+    // Attempt to insert into both tables for redundancy and backward compatibility
+    const [eduResult, filesResult] = await Promise.all([
+      supabase.from('educational_files').upsert(payload, { onConflict: 'id' }),
+      supabase.from('files').upsert(payload, { onConflict: 'id' })
+    ]);
+
+    if (eduResult.error && filesResult.error) {
+      console.error(">>> [SUPABASE ERROR] Failed to save to BOTH tables:", eduResult.error, filesResult.error);
+      throw new Error(`فشل تسجيل الملف في السحابة: ${eduResult.error.message} && ${filesResult.error.message}`);
     }
 
-    // Insert into files table as well
-    try {
-      const { error } = await supabase.from('files').upsert(payload, { onConflict: 'id' });
-      if (error) console.warn("Supabase files upsert notice:", error);
-    } catch (e) {
-      console.warn("files write err:", e);
-    }
+    if (eduResult.error) console.warn("Supabase educational_files upsert notice:", eduResult.error);
+    if (filesResult.error) console.warn("Supabase files upsert notice:", filesResult.error);
 
+    console.log(">>> [SUPABASE SUCCESS] File metadata recorded in cloud database.");
     return true;
-  } catch (err) {
+  } catch (err: any) {
     console.error("Failed to insert file to Supabase:", err);
     throw err;
   }
@@ -505,12 +488,14 @@ export async function deleteUserFromSupabase(userId: string): Promise<boolean> {
 
 export async function uploadFileToSupabaseStorage(file: File, path: string): Promise<string | null> {
   const supabase = getSupabaseClient();
-  if (!supabase) return null;
+  if (!supabase) throw new Error("Supabase client not initialized for storage upload.");
 
   try {
     const bucketName = 'educational-files';
     const cleanFileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
     const filePath = `${path}/${cleanFileName}`.replace(/\/+/g, '/');
+
+    console.log(`>>> [SUPABASE STORAGE] Starting upload: ${file.name} to bucket: ${bucketName}...`);
 
     const { data, error } = await supabase.storage
       .from(bucketName)
@@ -520,17 +505,23 @@ export async function uploadFileToSupabaseStorage(file: File, path: string): Pro
       });
 
     if (error) {
-      console.warn("Supabase storage upload error:", error);
-      return null;
+      console.error(">>> [SUPABASE STORAGE ERROR] Upload failed:", error);
+      throw new Error(`خطأ في رفع الملف سحابياً: ${error.message}`);
     }
+
+    console.log(">>> [SUPABASE STORAGE SUCCESS] File binary uploaded, generating public URL...");
 
     const { data: publicUrlData } = supabase.storage
       .from(bucketName)
       .getPublicUrl(data.path);
 
+    if (!publicUrlData || !publicUrlData.publicUrl) {
+      throw new Error("فشل في استخراج الرابط العام للملف المرفوع.");
+    }
+
     return publicUrlData.publicUrl;
-  } catch (err) {
+  } catch (err: any) {
     console.error("Failed to upload to Supabase storage:", err);
-    return null;
+    throw err;
   }
 }

@@ -219,24 +219,27 @@ export async function putFile(file: FileMapping): Promise<void> {
  * Generates a collision-proof unique ID for every uploaded file.
  */
 export async function uploadFileToServer(file: File, metadata: Partial<FileMapping>): Promise<FileMapping> {
-  console.log(">>> [DATABASE] Uploading file directly from browser:", file.name);
+  console.log(">>> [DATABASE] Starting multi-stage upload for:", file.name);
 
   // Generate unique collision-proof ID for the new file
   const uniqueId = metadata.id || `file_${Date.now()}_${Math.random().toString(36).substring(2, 10)}_${Math.floor(Math.random() * 1000000)}`;
 
   let fileUrl: string | undefined = undefined;
 
-  // 1. Try uploading to Supabase Storage if configured
+  // 1. Stage 1: Upload binary to Supabase Storage
   const { isConfigured } = getSupabaseCredentials();
   if (isConfigured) {
     try {
       const publicUrl = await uploadFileToSupabaseStorage(file, 'uploads');
       if (publicUrl) {
         fileUrl = publicUrl;
-        console.log(">>> [SUPABASE STORAGE] File uploaded, URL:", publicUrl);
+        console.log(">>> [DATABASE] Stage 1 Success: File binary stored at", fileUrl);
+      } else {
+        throw new Error("فشل في الحصول على رابط الملف بعد الرفع.");
       }
-    } catch (err) {
-      console.warn("Storage upload failed, keeping file data in DB:", err);
+    } catch (err: any) {
+      console.error(">>> [DATABASE ERROR] Stage 1 Failed (Storage):", err);
+      throw new Error(`فشل رفع ملف ${file.name} إلى المخزن السحابي: ${err.message || 'خطأ غير معروف'}`, { cause: err });
     }
   }
 
@@ -257,9 +260,16 @@ export async function uploadFileToServer(file: File, metadata: Partial<FileMappi
     fileUrl
   };
 
-  // 2. Insert as a brand new row in Supabase and storage
-  await insertNewFile(completeMapping);
-  return completeMapping;
+  // 2. Stage 2: Register in Supabase Database and local cache
+  try {
+    console.log(">>> [DATABASE] Stage 2: Registering metadata in cloud database...");
+    await insertNewFile(completeMapping);
+    console.log(">>> [DATABASE SUCCESS] Multi-stage upload completed successfully.");
+    return completeMapping;
+  } catch (err: any) {
+    console.error(">>> [DATABASE ERROR] Stage 2 Failed (Database):", err);
+    throw new Error(`تم رفع الملف ولكن فشل تسجيله في قاعدة البيانات: ${err.message || 'خطأ في المزامنة'}`, { cause: err });
+  }
 }
 
 /**
