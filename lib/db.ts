@@ -292,7 +292,9 @@ export async function uploadFileToServer(file: File, metadata: Partial<FileMappi
       const jsonUrl = await uploadBlobToSupabaseStorage(jsonBlob, `${uniqueId}_config.json`, 'data-cache');
       
       if (jsonUrl) {
-        (metadata as any).dataUrl = jsonUrl;
+        // PRO WORKAROUND: Store the URL as a string in the 'data' field. 
+        // Since 'data' is JSONB, it accepts strings. This avoids adding new columns.
+        metadata.data = jsonUrl as any; 
         console.log(">>> [DATABASE] Stage 1b Success: Data config stored at", jsonUrl);
       } else {
         throw new Error("فشل في الحصول على رابط تخزين البيانات.");
@@ -316,13 +318,9 @@ export async function uploadFileToServer(file: File, metadata: Partial<FileMappi
     headers: [], // Keep empty in DB
     displayColumns: [], // Keep empty in DB
     filterMappings: {}, // Keep empty in DB
-    data: localParsedData, // Keep in memory for local app state
+    data: metadata.data || localParsedData, // This might be the URL string or the Array
     fileUrl
   };
-
-  if ((metadata as any).dataUrl) {
-    (completeMapping as any).dataUrl = (metadata as any).dataUrl;
-  }
 
   // 4. Stage 2: Register in Supabase Database (TINY row INSERT)
   try {
@@ -340,8 +338,14 @@ export async function uploadFileToServer(file: File, metadata: Partial<FileMappi
  * Ensures a file has its data and metadata loaded from remote storage if necessary
  */
 export async function loadFileData(file: FileMapping): Promise<any[]> {
-  const dataUrl = (file as any).dataUrl;
-  if (!dataUrl) return file.data || [];
+  // If data is a string, it means it's a URL to the full JSON config (Pro polymorphic storage)
+  const dataValue = file.data;
+  
+  if (typeof dataValue !== 'string') {
+    return Array.isArray(dataValue) ? dataValue : [];
+  }
+
+  const dataUrl = dataValue;
 
   try {
     console.log(`>>> [DATABASE] Fetching remote full config for: ${file.filename}`);
@@ -353,10 +357,10 @@ export async function loadFileData(file: FileMapping): Promise<any[]> {
     // This restores headers, filterMappings, and the data array itself
     Object.assign(file, fullConfig);
     
-    return file.data || [];
+    return Array.isArray(file.data) ? file.data : [];
   } catch (err) {
     console.error(`>>> [DATABASE ERROR] Failed to fetch data cache for ${file.filename}:`, err);
-    return file.data || [];
+    return [];
   }
 }
 

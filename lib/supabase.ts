@@ -55,7 +55,7 @@ CREATE TABLE IF NOT EXISTS public.educational_files (
     headers JSONB,
     display_columns JSONB,
     filter_mappings JSONB,
-    data_url TEXT,
+    data JSONB,
     file_url TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -72,7 +72,7 @@ CREATE TABLE IF NOT EXISTS public.files (
     headers JSONB,
     display_columns JSONB,
     filter_mappings JSONB,
-    data_url TEXT,
+    data JSONB,
     file_url TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -186,10 +186,9 @@ export async function fetchFilesFromSupabase(): Promise<FileMapping[] | null> {
       headers: item.headers || undefined,
       displayColumns: item.display_columns || item.displayColumns || undefined,
       filterMappings: item.filter_mappings || item.filterMappings || {},
-      data: [], // Data will be loaded from dataUrl lazily
-      fileUrl: item.file_url || item.fileUrl || undefined,
-      dataUrl: item.data_url || undefined
-    } as FileMapping & { dataUrl?: string }));
+      data: item.data || [], 
+      fileUrl: item.file_url || item.fileUrl || undefined
+    }));
   } catch (err) {
     console.error("Supabase fetchFiles error:", err);
     return null;
@@ -217,11 +216,11 @@ export async function insertFileToSupabase(file: FileMapping): Promise<boolean> 
       headers: file.headers || null,
       display_columns: file.displayColumns || null,
       filter_mappings: file.filterMappings || null,
-      data_url: (file as any).dataUrl || null,
+      data: (file as any).dataUrl || file.data || null,
       file_url: (file as any).fileUrl || null
     };
 
-    console.log(">>> [SUPABASE] Attempting to REGISTER minimal file metadata:", file.filename);
+    console.log(">>> [SUPABASE] Attempting to REGISTER file metadata:", file.filename);
     
     // Pro-strategy: DELETE then INSERT instead of UPSERT to avoid any locking or indexing overhead on large tables
     await supabase.from('educational_files').delete().eq('id', payload.id);
