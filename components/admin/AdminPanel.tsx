@@ -39,37 +39,32 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onOpenAuth }) => {
       
       try {
         const cleanId = civilId.trim();
-        const response = await fetch('/api/admin/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ secret: cleanId })
-        });
-
-        if (!response.ok) {
-           const errorData = await response.json().catch(() => ({}));
-           throw new Error(`خطأ في التحقق (${response.status}): ${errorData.error || 'رقم الهوية غير مصرح له'}`);
-        }
-
-        localStorage.setItem('educational_map_bypass_secret', civilId);
-        localStorage.setItem('isAdmin', 'true');
         
-        const appUser: User = {
-            id: 'admin-local-session',
-            name: 'مدير النظام المعتمد',
-            role: 'admin',
-            userType: 'employee',
-            workEntity: 'الإدارة العامة للتعليم (دخول محلي)',
-            status: 'active',
-            email: 'aborakan8885@gmail.com',
-            permissions: {
-                visibleLayers: ['schools', 'kmz'],
-                canViewCoordinates: true,
-                canExportReports: true,
-                canUseSurroundingAnalysis: true
-            }
-        };
-        localStorage.setItem('educational_map_current_user', JSON.stringify(appUser));
-        setIsAuthed(true);
+        // Client-Side Only Bypass (Local Authentication)
+        if (cleanId === '1068575628') {
+            localStorage.setItem('educational_map_bypass_secret', cleanId);
+            localStorage.setItem('isAdmin', 'true');
+            
+            const appUser: User = {
+                id: 'admin-local-session',
+                name: 'مدير النظام المعتمد',
+                role: 'admin',
+                userType: 'employee',
+                workEntity: 'الإدارة العامة للتعليم (دخول محلي)',
+                status: 'active',
+                email: 'aborakan8885@gmail.com',
+                permissions: {
+                    visibleLayers: ['schools', 'kmz'],
+                    canViewCoordinates: true,
+                    canExportReports: true,
+                    canUseSurroundingAnalysis: true
+                }
+            };
+            localStorage.setItem('educational_map_current_user', JSON.stringify(appUser));
+            setIsAuthed(true);
+        } else {
+            throw new Error('رقم الهوية غير مصرح له بالدخول كمسؤول.');
+        }
       } catch (err: any) {
         setError(err.message || 'حدث خطأ أثناء الدخول المحلي');
       } finally {
