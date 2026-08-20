@@ -67,7 +67,7 @@ async function startServer() {
   // --- LOCAL AUTH API ---
   app.post("/api/admin/login", (req, res) => {
     const { secret } = req.body;
-    console.log(`>>> [AUTH] Login attempt with secret: [${secret}]`);
+    console.log(`>>> [AUTH] Login attempt. Secret type: ${typeof secret}, Body:`, req.body);
     
     const cleanSecret = String(secret || "").trim();
     if (cleanSecret === "1068575628") {
@@ -83,7 +83,7 @@ async function startServer() {
       });
     }
     console.warn(`>>> [AUTH] Login FAILED for secret: [${cleanSecret}]`);
-    res.status(403).json({ error: "Unauthorized" });
+    res.status(403).json({ error: `الرقم المستلم [${cleanSecret}] غير مسجل كمسؤول` });
   });
 
   // --- LOCAL UPLOAD API (Standard Multipart) ---

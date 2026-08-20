@@ -46,7 +46,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onOpenAuth }) => {
         });
 
         if (!response.ok) {
-           throw new Error('رقم الهوية غير مصرح له بالدخول كمسؤول.');
+           const errorData = await response.json().catch(() => ({}));
+           throw new Error(`خطأ في التحقق (${response.status}): ${errorData.error || 'رقم الهوية غير مصرح له'}`);
         }
 
         localStorage.setItem('educational_map_bypass_secret', civilId);
