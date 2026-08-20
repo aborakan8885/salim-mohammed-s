@@ -2,7 +2,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import type { FileMapping, Feedback, User } from '../types';
 
 // Environment variables - Hardcoded as requested for stable cross-device connection
-const SUPABASE_URL = 'https://pivqfuzscndisayqfuyr.supabase.co'; // تم استخراج الرابط الصحيح للمشروع
+const SUPABASE_URL = 'https://supabase.co'; 
 const SUPABASE_ANON_KEY = 'sb_publishable_KcSCdguIPOApmnP7cI_jQw_dfqwG272'; 
 
 export function getSupabaseCredentials(): { url: string; anonKey: string; isConfigured: boolean } {
