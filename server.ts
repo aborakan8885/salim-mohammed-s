@@ -67,7 +67,11 @@ async function startServer() {
   // --- LOCAL AUTH API ---
   app.post("/api/admin/login", (req, res) => {
     const { secret } = req.body;
-    if (secret === "1068575628") {
+    console.log(`>>> [AUTH] Login attempt with secret: [${secret}]`);
+    
+    const cleanSecret = String(secret || "").trim();
+    if (cleanSecret === "1068575628") {
+      console.log(">>> [AUTH] Login SUCCESS for admin-local");
       return res.json({ 
         success: true, 
         bypass: true, 
@@ -78,13 +82,15 @@ async function startServer() {
         } 
       });
     }
+    console.warn(`>>> [AUTH] Login FAILED for secret: [${cleanSecret}]`);
     res.status(403).json({ error: "Unauthorized" });
   });
 
   // --- LOCAL UPLOAD API (Standard Multipart) ---
   app.post("/api/admin/upload", upload.single('file'), async (req, res) => {
     const { secret, metadata } = req.body;
-    if (secret !== "1068575628") return res.status(403).json({ error: "Unauthorized" });
+    const cleanSecret = String(secret || "").trim();
+    if (cleanSecret !== "1068575628") return res.status(403).json({ error: "Unauthorized" });
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
 
     try {
@@ -125,7 +131,8 @@ async function startServer() {
 
   app.post("/api/admin/sync-data", async (req, res) => {
     const { secret, type, file } = req.body;
-    if (secret !== "1068575628") return res.status(403).json({ error: "Unauthorized" });
+    const cleanSecret = String(secret || "").trim();
+    if (cleanSecret !== "1068575628") return res.status(403).json({ error: "Unauthorized" });
 
     try {
       if (type === 'file') {
@@ -156,7 +163,8 @@ async function startServer() {
 
   app.delete("/api/admin/files/:id", async (req, res) => {
     const { secret } = req.query;
-    if (secret !== "1068575628") return res.status(403).json({ error: "Unauthorized" });
+    const cleanSecret = String(secret || "").trim();
+    if (cleanSecret !== "1068575628") return res.status(403).json({ error: "Unauthorized" });
 
     try {
       const dbData = JSON.parse(await fs.readFile(FILES_DB, "utf-8"));
@@ -194,7 +202,8 @@ async function startServer() {
 
   app.delete("/api/admin/feedback/:id", async (req, res) => {
     const { secret } = req.query;
-    if (secret !== "1068575628") return res.status(403).json({ error: "Unauthorized" });
+    const cleanSecret = String(secret || "").trim();
+    if (cleanSecret !== "1068575628") return res.status(403).json({ error: "Unauthorized" });
 
     try {
       const dbData = JSON.parse(await fs.readFile(FEEDBACK_DB, "utf-8"));
@@ -208,7 +217,8 @@ async function startServer() {
 
   app.get("/api/admin/feedback", async (req, res) => {
     const { secret } = req.query;
-    if (secret !== "1068575628") return res.status(403).json({ error: "Unauthorized" });
+    const cleanSecret = String(secret || "").trim();
+    if (cleanSecret !== "1068575628") return res.status(403).json({ error: "Unauthorized" });
     const data = await fs.readFile(FEEDBACK_DB, "utf-8");
     res.json(JSON.parse(data));
   });

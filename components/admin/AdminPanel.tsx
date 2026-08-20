@@ -38,10 +38,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onOpenAuth }) => {
       setError(null);
       
       try {
+        const cleanId = civilId.trim();
         const response = await fetch('/api/admin/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ secret: civilId })
+          body: JSON.stringify({ secret: cleanId })
         });
 
         if (!response.ok) {
