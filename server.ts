@@ -10,14 +10,19 @@ const PORT = 3000;
 
 // Local DB Paths
 const DB_DIR = path.join(process.cwd(), "data");
-const UPLOADS_DIR = path.join(DB_DIR, "uploads");
+const UPLOADS_DIR = DB_DIR; // Use data/ directly as requested
 const FILES_DB = path.join(DB_DIR, "files.json");
 const FEEDBACK_DB = path.join(DB_DIR, "feedback.json");
 
 // Configure Multer for local storage
 const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, UPLOADS_DIR);
+  destination: async (req, file, cb) => {
+    try {
+      await fs.mkdir(UPLOADS_DIR, { recursive: true });
+      cb(null, UPLOADS_DIR);
+    } catch (err) {
+      cb(err as Error, UPLOADS_DIR);
+    }
   },
   filename: (req, file, cb) => {
     // Sanitize filename and add timestamp to avoid collisions
@@ -87,11 +92,21 @@ async function startServer() {
   });
 
   // --- LOCAL UPLOAD API (Standard Multipart) ---
-  app.post("/api/admin/upload", upload.single('file'), async (req, res) => {
+  const handleUpload = async (req: any, res: any) => {
+    console.log(">>> [UPLOAD] Request received at", req.originalUrl);
     const { secret, metadata } = req.body;
     const cleanSecret = String(secret || "").trim();
-    if (cleanSecret !== "1068575628") return res.status(403).json({ error: "Unauthorized" });
-    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+    
+    // In local mode we can be more lenient or check the specific bypass
+    if (cleanSecret !== "1068575628") {
+        console.warn(">>> [UPLOAD] Unauthorized attempt with secret:", cleanSecret);
+        return res.status(403).json({ error: "Unauthorized" });
+    }
+    
+    if (!req.file) {
+        console.warn(">>> [UPLOAD] No file in request");
+        return res.status(400).json({ error: "No file uploaded" });
+    }
 
     try {
       const fileMetadata = JSON.parse(metadata || '{}');
@@ -112,12 +127,19 @@ async function startServer() {
       await fs.writeFile(FILES_DB, JSON.stringify(dbData, null, 2));
 
       console.log(`>>> [LOCAL DB] File uploaded & mapped: ${req.file.originalname}`);
-      res.json({ success: true, file: newFileMapping });
+      res.json({ 
+        success: true, 
+        message: "تم الرفع بنجاح", 
+        file: newFileMapping 
+      });
     } catch (e: any) {
       console.error("Upload process error:", e);
-      res.status(500).json({ error: e.message });
+      res.status(500).json({ error: e.message || "حدث خطأ أثناء معالجة الملف" });
     }
-  });
+  };
+
+  app.post("/api/admin/upload", upload.single('file'), handleUpload);
+  app.post("/api/upload", upload.single('file'), handleUpload); // Alias as requested
 
   // --- LOCAL FILES API ---
   app.get("/api/files", async (req, res) => {
