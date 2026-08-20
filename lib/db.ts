@@ -10,6 +10,7 @@ import {
   insertFeedbackToSupabase,
   deleteFeedbackFromSupabase,
   uploadFileToSupabaseStorage,
+  uploadBlobToSupabaseStorage,
   getSupabaseCredentials
 } from './supabase';
 
@@ -266,12 +267,22 @@ export async function uploadFileToServer(file: File, metadata: Partial<FileMappi
   const { isConfigured } = getSupabaseCredentials();
   if (isConfigured) {
     try {
+      // 2a. Upload Original File
       const publicUrl = await uploadFileToSupabaseStorage(file, 'uploads');
       if (publicUrl) {
         fileUrl = publicUrl;
-        console.log(">>> [DATABASE] Stage 1 Success: File binary stored at", fileUrl);
-      } else {
-        throw new Error("فشل في الحصول على رابط الملف بعد الرفع.");
+        console.log(">>> [DATABASE] Stage 1a Success: File binary stored at", fileUrl);
+      }
+
+      // 2b. Upload Parsed JSON Cache (If applicable) - This is the "PRO" speed solution
+      if (localParsedData && localParsedData.length > 0) {
+        console.log(">>> [DATABASE] Stage 1b: Uploading JSON data cache to storage...");
+        const jsonBlob = new Blob([JSON.stringify(localParsedData)], { type: 'application/json' });
+        const jsonUrl = await uploadBlobToSupabaseStorage(jsonBlob, `${uniqueId}.json`, 'data-cache');
+        if (jsonUrl) {
+          (metadata as any).dataUrl = jsonUrl;
+          console.log(">>> [DATABASE] Stage 1b Success: Data cache stored at", jsonUrl);
+        }
       }
     } catch (err: any) {
       console.error(">>> [DATABASE ERROR] Stage 1 Failed (Storage):", err);
@@ -291,10 +302,13 @@ export async function uploadFileToServer(file: File, metadata: Partial<FileMappi
     headers: metadata.headers || (localParsedData && localParsedData.length > 0 ? Object.keys(localParsedData[0]) : undefined),
     displayColumns: metadata.displayColumns,
     filterMappings: metadata.filterMappings || {},
-    data: localParsedData, // This now contains all the rows as one single JSON array
-    fileContent: localParsedData ? undefined : metadata.fileContent,
+    data: localParsedData, // Keep in memory for immediate UI update
     fileUrl
   };
+
+  if ((metadata as any).dataUrl) {
+    (completeMapping as any).dataUrl = (metadata as any).dataUrl;
+  }
 
   // 3. Stage 2: Register in Supabase Database (Single row INSERT)
   try {
@@ -305,6 +319,28 @@ export async function uploadFileToServer(file: File, metadata: Partial<FileMappi
   } catch (err: any) {
     console.error(">>> [DATABASE ERROR] Stage 2 Failed (Database):", err);
     throw new Error(`تم رفع الملف ولكن فشل تسجيله في قاعدة البيانات: ${err.message || 'خطأ في المزامنة'}`, { cause: err });
+  }
+}
+
+/**
+ * Ensures a file has its data loaded (either from memory or from remote storage)
+ */
+export async function loadFileData(file: FileMapping): Promise<any[]> {
+  if (file.data && file.data.length > 0) return file.data;
+  
+  const dataUrl = (file as any).dataUrl;
+  if (!dataUrl) return [];
+
+  try {
+    console.log(`>>> [DATABASE] Fetching remote data cache for: ${file.filename}`);
+    const response = await fetch(dataUrl);
+    if (!response.ok) throw new Error("Failed to fetch data cache");
+    const data = await response.json();
+    file.data = data; // Cache in memory
+    return data;
+  } catch (err) {
+    console.error(`>>> [DATABASE ERROR] Failed to fetch data cache for ${file.filename}:`, err);
+    return [];
   }
 }
 

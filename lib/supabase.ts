@@ -55,8 +55,7 @@ CREATE TABLE IF NOT EXISTS public.educational_files (
     headers JSONB,
     display_columns JSONB,
     filter_mappings JSONB,
-    data JSONB,
-    file_content TEXT,
+    data_url TEXT,
     file_url TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -73,8 +72,7 @@ CREATE TABLE IF NOT EXISTS public.files (
     headers JSONB,
     display_columns JSONB,
     filter_mappings JSONB,
-    data JSONB,
-    file_content TEXT,
+    data_url TEXT,
     file_url TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
@@ -188,10 +186,10 @@ export async function fetchFilesFromSupabase(): Promise<FileMapping[] | null> {
       headers: item.headers || undefined,
       displayColumns: item.display_columns || item.displayColumns || undefined,
       filterMappings: item.filter_mappings || item.filterMappings || {},
-      data: item.data || undefined,
-      fileContent: item.file_content || item.fileContent || undefined,
-      fileUrl: item.file_url || item.fileUrl || undefined
-    }));
+      data: [], // Data will be loaded from dataUrl lazily
+      fileUrl: item.file_url || item.fileUrl || undefined,
+      dataUrl: item.data_url || undefined
+    } as FileMapping & { dataUrl?: string }));
   } catch (err) {
     console.error("Supabase fetchFiles error:", err);
     return null;
@@ -219,8 +217,7 @@ export async function insertFileToSupabase(file: FileMapping): Promise<boolean> 
       headers: file.headers || null,
       display_columns: file.displayColumns || null,
       filter_mappings: file.filterMappings || null,
-      data: file.data || null,
-      file_content: typeof file.fileContent === 'string' ? file.fileContent : null,
+      data_url: (file as any).dataUrl || null,
       file_url: (file as any).fileUrl || null
     };
 
@@ -468,6 +465,35 @@ export async function deleteUserFromSupabase(userId: string): Promise<boolean> {
 // ----------------------------------------------------
 // Storage Operations
 // ----------------------------------------------------
+
+export async function uploadBlobToSupabaseStorage(blob: Blob, fileName: string, path: string): Promise<string | null> {
+  const supabase = getSupabaseClient();
+  if (!supabase) throw new Error("Supabase client not initialized for storage upload.");
+
+  try {
+    const bucketName = 'educational-files';
+    const filePath = `${path}/${Date.now()}_${fileName}`.replace(/\/+/g, '/');
+
+    const { data, error } = await supabase.storage
+      .from(bucketName)
+      .upload(filePath, blob, {
+        cacheControl: '3600',
+        upsert: true,
+        contentType: 'application/json'
+      });
+
+    if (error) throw error;
+
+    const { data: publicUrlData } = supabase.storage
+      .from(bucketName)
+      .getPublicUrl(data.path);
+
+    return publicUrlData.publicUrl;
+  } catch (err: any) {
+    console.error("Failed to upload blob to Supabase storage:", err);
+    throw err;
+  }
+}
 
 export async function uploadFileToSupabaseStorage(file: File, path: string): Promise<string | null> {
   const supabase = getSupabaseClient();

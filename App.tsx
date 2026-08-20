@@ -9,7 +9,7 @@ import { ReportsPanel } from './components/ReportsPanel';
 import { PrintReportModal } from './components/modals/PrintReportModal';
 import type { EducationalPlace, FilterState, Category, User, FileMapping, SchoolFilters, EarlyChildhoodFilters, DisabilitySupportFilters, SpecialEducationFilters, LandFilters, ProjectFilters, BuildingFilters } from './types';
 import { Search, Menu, SlidersHorizontal } from 'lucide-react';
-import { getAllFiles, deleteFile, putFile } from './lib/db';
+import { getAllFiles, deleteFile, putFile, loadFileData } from './lib/db';
 import { subscribeToFilesChanges } from './lib/supabase';
 import AdminPanel from './components/admin/AdminPanel';
 import type * as GeoJSON from 'geojson';
@@ -1375,6 +1375,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         
         try {
             const files = await getAllFiles();
+            
+            // PRO-TREATMENT: Lazily load data for all files from remote storage in parallel
+            // This avoids DB timeouts and huge JSONB column issues entirely.
+            setLoadingStage('loading_files');
+            await Promise.all(files.map(f => loadFileData(f)));
+            
             let { places, mappings } = processFiles(files);
             let boundaryFile = Object.values(mappings).find(f => f.isBoundaryLayer);
             if (!boundaryFile) {
