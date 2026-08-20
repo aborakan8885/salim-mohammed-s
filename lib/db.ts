@@ -202,7 +202,22 @@ export async function putFile(file: FileMapping): Promise<void> {
   const { isConfigured } = getSupabaseCredentials();
   if (isConfigured) {
     try {
+      // 3a. Update metadata in database
       await updateFileInSupabase(file);
+      
+      // 3b. Update full configuration in storage to keep it in sync
+      // This is crucial because next time loadFileData is called, it merges this JSON
+      if (typeof file.data !== 'string' && Array.isArray(file.data)) {
+        console.log(">>> [DATABASE] Syncing updated metadata to cloud storage cache...");
+        const fullMappingForStorage = {
+          ...file,
+          lastUpdated: new Date().toISOString()
+        };
+        const jsonBlob = new Blob([JSON.stringify(fullMappingForStorage)], { type: 'application/json' });
+        await uploadBlobToSupabaseStorage(jsonBlob, `${file.id}_config.json`, 'data-cache');
+        console.log(">>> [DATABASE] Sync successful.");
+      }
+      
       console.log(">>> [SUPABASE] Successfully updated file in cloud database.");
     } catch (err: any) {
       // If not existing yet, upsert
@@ -353,9 +368,16 @@ export async function loadFileData(file: FileMapping): Promise<any[]> {
     if (!response.ok) throw new Error("Failed to fetch data config");
     const fullConfig = await response.json();
     
-    // Merge the full config into the file object
-    // This restores headers, filterMappings, and the data array itself
-    Object.assign(file, fullConfig);
+    // PRO-MERGE: Only restore the "Big Data" fields that were emptied in the DB record.
+    // We preserve the "Index Metadata" (category, isBoundaryLayer, columns) from the DB 
+    // because they are more likely to be the most recent source of truth.
+    file.headers = fullConfig.headers || file.headers;
+    file.displayColumns = fullConfig.displayColumns || file.displayColumns;
+    file.filterMappings = fullConfig.filterMappings || file.filterMappings;
+    file.data = fullConfig.data || [];
+    
+    // We explicitly DO NOT use Object.assign(file, fullConfig) to avoid overwriting 
+    // metadata that might have been updated in the DB but not yet in the Storage cache.
     
     return Array.isArray(file.data) ? file.data : [];
   } catch (err) {

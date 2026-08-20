@@ -247,7 +247,7 @@ export async function updateFileInSupabase(file: FileMapping): Promise<boolean> 
   if (!supabase) return false;
 
   try {
-    const payload = {
+    const payload: any = {
       filename: file.filename,
       category: file.category,
       file_type: file.fileType,
@@ -258,12 +258,25 @@ export async function updateFileInSupabase(file: FileMapping): Promise<boolean> 
       headers: file.headers || null,
       display_columns: file.displayColumns || null,
       filter_mappings: file.filterMappings || null,
-      data: file.data || null,
-      file_content: typeof file.fileContent === 'string' ? file.fileContent : null,
       file_url: (file as any).fileUrl || null
     };
 
-    await supabase.from('educational_files').update(payload).eq('id', file.id);
+    // PRO-STRATEGY: Never send the large data array back to the DB during update.
+    // If 'file.data' is an array, it means it's the loaded data in memory.
+    // If 'file.data' is a string, it's the URL pointing to storage.
+    if (typeof file.data === 'string') {
+      payload.data = file.data;
+    }
+    // Note: if file.data is an array, we omit it from payload so the DB keeps the existing URL string.
+
+    console.log(">>> [SUPABASE] Updating file metadata for:", file.filename);
+    const { error } = await supabase.from('educational_files').update(payload).eq('id', file.id);
+    
+    if (error) {
+      console.error(">>> [SUPABASE ERROR] Update failed:", error);
+      throw new Error(`فشل تحديث بيانات الملف: ${error.message}`);
+    }
+    
     return true;
   } catch (err) {
     console.error("Failed to update file in Supabase:", err);
