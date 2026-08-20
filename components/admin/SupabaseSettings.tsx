@@ -94,21 +94,14 @@ export const SupabaseSettings: React.FC = () => {
                         </div>
                         <div>
                             <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-                                <span>إدارة الربط والمزامنة السحابية (Supabase)</span>
-                                {isConfigured ? (
-                                    <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-full border border-emerald-200 flex items-center gap-1">
-                                        <CheckCircle className="h-3.5 w-3.5" />
-                                        سحابي نشط
-                                    </span>
-                                ) : (
-                                    <span className="px-2.5 py-0.5 bg-blue-100 text-blue-800 text-xs font-bold rounded-full border border-blue-200 flex items-center gap-1">
-                                        <Database className="h-3.5 w-3.5" />
-                                        تخزين محلي مرن
-                                    </span>
-                                )}
+                                <span>إدارة المزامنة السحابية (Supabase)</span>
+                                <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 text-xs font-bold rounded-full border border-emerald-200 flex items-center gap-1">
+                                    <CheckCircle className="h-3.5 w-3.5" />
+                                    تكوين ثابت (Hardcoded)
+                                </span>
                             </h2>
                             <p className="text-xs text-gray-500 mt-1">
-                                ربط مباشر بين المتصفح وسحابة Supabase لمزامنة طبقات المدارس، المباني، الملاحظات والمستخدمين دون أي وسيط.
+                                التكوين مثبت برمجياً لضمان استقرار الاتصال عبر جميع الأجهزة والمتصفحات.
                             </p>
                         </div>
                     </div>
@@ -150,9 +143,10 @@ export const SupabaseSettings: React.FC = () => {
                         <input
                             type="text"
                             value={url}
-                            onChange={e => setUrl(e.target.value)}
+                            readOnly
+                            disabled
                             placeholder="https://xxxxxxxxxxxx.supabase.co"
-                            className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-mono font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                            className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono font-medium text-gray-500"
                         />
                     </div>
 
@@ -163,9 +157,10 @@ export const SupabaseSettings: React.FC = () => {
                         <input
                             type="password"
                             value={anonKey}
-                            onChange={e => setAnonKey(e.target.value)}
+                            readOnly
+                            disabled
                             placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-                            className="w-full px-3.5 py-2.5 bg-white border border-gray-200 rounded-xl text-xs font-mono font-medium focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                            className="w-full px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-mono font-medium text-gray-500"
                         />
                     </div>
                 </div>
@@ -177,24 +172,8 @@ export const SupabaseSettings: React.FC = () => {
                         className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl gap-2 shadow-sm"
                     >
                         {testingConnection ? <RefreshCw className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-                        <span>حفظ واختبار الاتصال السحابي</span>
+                        <span>اختبار الاتصال الحالي</span>
                     </Button>
-
-                    {url && anonKey && (
-                        <Button
-                            variant="secondary"
-                            onClick={() => {
-                                const currentOrigin = window.location.origin + window.location.pathname;
-                                const shareUrl = `${currentOrigin}?sb_url=${encodeURIComponent(url)}&sb_key=${encodeURIComponent(anonKey)}`;
-                                navigator.clipboard.writeText(shareUrl);
-                                alert('تم نسخ رابط الربط السحابي المباشر! يمكنك الآن فتح هذا الرابط في أي جهاز آخر لربطه بسحابة Supabase فوراً وبشكل دائم.');
-                            }}
-                            className="bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 rounded-xl font-bold gap-2 text-xs"
-                        >
-                            <Link2 className="h-4 w-4 text-blue-600" />
-                            <span>نسخ رابط الربط المباشر للأجهزة الأخرى</span>
-                        </Button>
-                    )}
                 </div>
             </div>
 

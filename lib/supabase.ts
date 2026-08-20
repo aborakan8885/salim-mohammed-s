@@ -1,42 +1,20 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import type { FileMapping, Feedback, User } from '../types';
 
-// Environment variables
-const ENV_SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
-const ENV_SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-
-// Local storage key for dynamic configuration if set in admin panel
-const STORAGE_SUPABASE_URL_KEY = 'educational_map_supabase_url';
-const STORAGE_SUPABASE_KEY_KEY = 'educational_map_supabase_key';
+// Environment variables - Hardcoded as requested for stable cross-device connection
+const SUPABASE_URL = 'https://supabase.co'; 
+const SUPABASE_ANON_KEY = 'sb_publishable_KcSCdguIPOApmnP7cI_jQw_dfqwG272'; 
 
 export function getSupabaseCredentials(): { url: string; anonKey: string; isConfigured: boolean } {
-  // Check URL parameters first for instant cross-device sharing
-  let paramUrl = '';
-  let paramKey = '';
-  if (typeof window !== 'undefined' && window.location) {
-    try {
-      const searchParams = new URLSearchParams(window.location.search);
-      paramUrl = searchParams.get('sb_url') || searchParams.get('supabase_url') || '';
-      paramKey = searchParams.get('sb_key') || searchParams.get('supabase_key') || '';
-      if (paramUrl && paramKey) {
-        saveSupabaseCredentials(paramUrl, paramKey);
-      }
-    } catch {
-      // ignore
-    }
-  }
-
-  const url = ENV_SUPABASE_URL || paramUrl || (typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_SUPABASE_URL_KEY) : '') || '';
-  const anonKey = ENV_SUPABASE_ANON_KEY || paramKey || (typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_SUPABASE_KEY_KEY) : '') || '';
-  const isConfigured = Boolean(url && anonKey && url.startsWith('https://') && anonKey.length > 20);
+  const url = SUPABASE_URL;
+  const anonKey = SUPABASE_ANON_KEY;
+  const isConfigured = Boolean(url && anonKey && url.startsWith('https://') && anonKey.length > 10);
   return { url, anonKey, isConfigured };
 }
 
 export function saveSupabaseCredentials(url: string, anonKey: string): void {
-  if (typeof localStorage !== 'undefined') {
-    if (url) localStorage.setItem(STORAGE_SUPABASE_URL_KEY, url.trim());
-    if (anonKey) localStorage.setItem(STORAGE_SUPABASE_KEY_KEY, anonKey.trim());
-  }
+  // Logic disabled as requested to keep configuration hardcoded in the source
+  console.log("Saving credentials disabled: Using hardcoded configuration.");
 }
 
 let supabaseInstance: SupabaseClient | null = null;
