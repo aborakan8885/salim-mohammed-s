@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, UploadCloud, List, Users, MessageSquare, ShieldAlert, Settings, Mail, Key, Loader2, AlertCircle } from 'lucide-react';
 import { Card } from '../ui/Card';
+import { Button } from '../ui/Button';
 import FileUpload from './FileUpload';
 import FileManagement from './FileManagement';
 import UserManagement from './UserManagement';
