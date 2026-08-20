@@ -10,15 +10,33 @@ const STORAGE_SUPABASE_URL_KEY = 'educational_map_supabase_url';
 const STORAGE_SUPABASE_KEY_KEY = 'educational_map_supabase_key';
 
 export function getSupabaseCredentials(): { url: string; anonKey: string; isConfigured: boolean } {
-  const url = ENV_SUPABASE_URL || localStorage.getItem(STORAGE_SUPABASE_URL_KEY) || '';
-  const anonKey = ENV_SUPABASE_ANON_KEY || localStorage.getItem(STORAGE_SUPABASE_KEY_KEY) || '';
+  // Check URL parameters first for instant cross-device sharing
+  let paramUrl = '';
+  let paramKey = '';
+  if (typeof window !== 'undefined' && window.location) {
+    try {
+      const searchParams = new URLSearchParams(window.location.search);
+      paramUrl = searchParams.get('sb_url') || searchParams.get('supabase_url') || '';
+      paramKey = searchParams.get('sb_key') || searchParams.get('supabase_key') || '';
+      if (paramUrl && paramKey) {
+        saveSupabaseCredentials(paramUrl, paramKey);
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  const url = ENV_SUPABASE_URL || paramUrl || (typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_SUPABASE_URL_KEY) : '') || '';
+  const anonKey = ENV_SUPABASE_ANON_KEY || paramKey || (typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_SUPABASE_KEY_KEY) : '') || '';
   const isConfigured = Boolean(url && anonKey && url.startsWith('https://') && anonKey.length > 20);
   return { url, anonKey, isConfigured };
 }
 
 export function saveSupabaseCredentials(url: string, anonKey: string): void {
-  if (url) localStorage.setItem(STORAGE_SUPABASE_URL_KEY, url.trim());
-  if (anonKey) localStorage.setItem(STORAGE_SUPABASE_KEY_KEY, anonKey.trim());
+  if (typeof localStorage !== 'undefined') {
+    if (url) localStorage.setItem(STORAGE_SUPABASE_URL_KEY, url.trim());
+    if (anonKey) localStorage.setItem(STORAGE_SUPABASE_KEY_KEY, anonKey.trim());
+  }
 }
 
 let supabaseInstance: SupabaseClient | null = null;
@@ -46,8 +64,27 @@ export function getSupabaseClient(): SupabaseClient | null {
 // ----------------------------------------------------
 // SQL Schema definition for 1-click execution in Supabase
 // ----------------------------------------------------
-export const SUPABASE_SQL_SCHEMA = `-- 1. إنشاء جدول الملفات والخرائط بدون أي قيود تمنع تكرار الملفات أو الفئات
+export const SUPABASE_SQL_SCHEMA = `-- 1. إنشاء جدول الملفات والخرائط (باسم educational_files و files)
 CREATE TABLE IF NOT EXISTS public.educational_files (
+    id TEXT PRIMARY KEY,
+    filename TEXT NOT NULL,
+    category TEXT NOT NULL DEFAULT 'unassigned',
+    file_type TEXT NOT NULL,
+    is_boundary_layer BOOLEAN DEFAULT FALSE,
+    lat_column TEXT,
+    lng_column TEXT,
+    name_column TEXT,
+    headers JSONB,
+    display_columns JSONB,
+    filter_mappings JSONB,
+    data JSONB,
+    file_content TEXT,
+    file_url TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- إنشاء جدول files أيضاً لضمان التوافق مع أي استعلام
+CREATE TABLE IF NOT EXISTS public.files (
     id TEXT PRIMARY KEY,
     filename TEXT NOT NULL,
     category TEXT NOT NULL DEFAULT 'unassigned',
@@ -70,6 +107,11 @@ ALTER TABLE public.educational_files DROP CONSTRAINT IF EXISTS educational_files
 ALTER TABLE public.educational_files DROP CONSTRAINT IF EXISTS educational_files_filename_key;
 ALTER TABLE public.educational_files DROP CONSTRAINT IF EXISTS educational_files_file_type_key;
 ALTER TABLE public.educational_files DROP CONSTRAINT IF EXISTS educational_files_category_unique;
+
+ALTER TABLE public.files DROP CONSTRAINT IF EXISTS files_category_key;
+ALTER TABLE public.files DROP CONSTRAINT IF EXISTS files_filename_key;
+ALTER TABLE public.files DROP CONSTRAINT IF EXISTS files_file_type_key;
+ALTER TABLE public.files DROP CONSTRAINT IF EXISTS files_category_unique;
 
 -- 2. إنشاء جدول الملاحظات والمقترحات
 CREATE TABLE IF NOT EXISTS public.feedback (
@@ -95,38 +137,29 @@ CREATE TABLE IF NOT EXISTS public.users (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 4. تفعيل سياسات الأمان (Row Level Security) مع السماح بالقراءة والكتابة
+-- 4. تفعيل سياسات الأمان (Row Level Security) مع السماح بالقراءة والكتابة للجميع
 ALTER TABLE public.educational_files ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.files ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.feedback ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Allow public read on educational_files" ON public.educational_files;
 CREATE POLICY "Allow public read on educational_files" ON public.educational_files FOR SELECT USING (true);
-
-DROP POLICY IF EXISTS "Allow public insert on educational_files" ON public.educational_files;
-CREATE POLICY "Allow public insert on educational_files" ON public.educational_files FOR INSERT WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Allow public update on educational_files" ON public.educational_files;
-CREATE POLICY "Allow public update on educational_files" ON public.educational_files FOR UPDATE USING (true);
-
-DROP POLICY IF EXISTS "Allow public delete on educational_files" ON public.educational_files;
-CREATE POLICY "Allow public delete on educational_files" ON public.educational_files FOR DELETE USING (true);
-
 DROP POLICY IF EXISTS "Allow public write on educational_files" ON public.educational_files;
 CREATE POLICY "Allow public write on educational_files" ON public.educational_files FOR ALL USING (true);
 
+DROP POLICY IF EXISTS "Allow public read on files" ON public.files;
+CREATE POLICY "Allow public read on files" ON public.files FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Allow public write on files" ON public.files;
+CREATE POLICY "Allow public write on files" ON public.files FOR ALL USING (true);
+
 DROP POLICY IF EXISTS "Allow public read on feedback" ON public.feedback;
 CREATE POLICY "Allow public read on feedback" ON public.feedback FOR SELECT USING (true);
-
-DROP POLICY IF EXISTS "Allow public insert on feedback" ON public.feedback;
-CREATE POLICY "Allow public insert on feedback" ON public.feedback FOR INSERT WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Allow public delete on feedback" ON public.feedback;
-CREATE POLICY "Allow public delete on feedback" ON public.feedback FOR DELETE USING (true);
+DROP POLICY IF EXISTS "Allow public write on feedback" ON public.feedback;
+CREATE POLICY "Allow public write on feedback" ON public.feedback FOR ALL USING (true);
 
 DROP POLICY IF EXISTS "Allow public read on users" ON public.users;
 CREATE POLICY "Allow public read on users" ON public.users FOR SELECT USING (true);
-
 DROP POLICY IF EXISTS "Allow public write on users" ON public.users;
 CREATE POLICY "Allow public write on users" ON public.users FOR ALL USING (true);
 
@@ -137,50 +170,67 @@ ON CONFLICT (id) DO NOTHING;
 
 DROP POLICY IF EXISTS "Allow public read on storage" ON storage.objects;
 CREATE POLICY "Allow public read on storage" ON storage.objects FOR SELECT USING (bucket_id = 'educational-files');
-
 DROP POLICY IF EXISTS "Allow public upload on storage" ON storage.objects;
-CREATE POLICY "Allow public upload on storage" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'educational-files');
-
-DROP POLICY IF EXISTS "Allow public delete on storage" ON storage.objects;
-CREATE POLICY "Allow public delete on storage" ON storage.objects FOR DELETE USING (bucket_id = 'educational-files');
+CREATE POLICY "Allow public upload on storage" ON storage.objects FOR ALL WITH CHECK (bucket_id = 'educational-files');
 `;
 
 // ----------------------------------------------------
 // Database Operations (Files & Mappings)
 // ----------------------------------------------------
 
+/**
+ * Fetch all files directly from Supabase.
+ * Checks both 'educational_files' and 'files' tables for 100% compatibility.
+ */
 export async function fetchFilesFromSupabase(): Promise<FileMapping[] | null> {
   const supabase = getSupabaseClient();
   if (!supabase) return null;
 
   try {
-    const { data, error } = await supabase
+    console.log(">>> [SUPABASE] Fetching live files from cloud database...");
+
+    // 1. Try 'educational_files'
+    const { data: eduData, error: eduErr } = await supabase
       .from('educational_files')
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (error) {
-      console.warn("Supabase fetch files warning:", error);
-      return null;
+    // 2. Try 'files' table
+    const { data: filesData, error: filesErr } = await supabase
+      .from('files')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    let rawList: any[] = [];
+    if (!eduErr && eduData && eduData.length > 0) {
+      rawList = eduData;
+    } else if (!filesErr && filesData && filesData.length > 0) {
+      rawList = filesData;
+    } else if (eduData) {
+      rawList = eduData;
+    } else if (filesData) {
+      rawList = filesData;
     }
 
-    if (!data) return [];
+    if (!rawList) return [];
 
-    return data.map(item => ({
+    console.log(`>>> [SUPABASE] Successfully retrieved ${rawList.length} files from cloud.`);
+
+    return rawList.map(item => ({
       id: String(item.id),
-      filename: item.filename,
-      category: item.category as any,
-      fileType: item.file_type as any,
-      isBoundaryLayer: Boolean(item.is_boundary_layer),
-      latColumn: item.lat_column || undefined,
-      lngColumn: item.lng_column || undefined,
-      nameColumn: item.name_column || undefined,
+      filename: item.filename || item.name || 'ملف بدون اسم',
+      category: (item.category || 'unassigned') as any,
+      fileType: (item.file_type || item.fileType || 'tabular') as any,
+      isBoundaryLayer: Boolean(item.is_boundary_layer ?? item.isBoundaryLayer),
+      latColumn: item.lat_column || item.latColumn || undefined,
+      lngColumn: item.lng_column || item.lngColumn || undefined,
+      nameColumn: item.name_column || item.nameColumn || undefined,
       headers: item.headers || undefined,
-      displayColumns: item.display_columns || undefined,
-      filterMappings: item.filter_mappings || {},
+      displayColumns: item.display_columns || item.displayColumns || undefined,
+      filterMappings: item.filter_mappings || item.filterMappings || {},
       data: item.data || undefined,
-      fileContent: item.file_content || undefined,
-      fileUrl: item.file_url || undefined
+      fileContent: item.file_content || item.fileContent || undefined,
+      fileUrl: item.file_url || item.fileUrl || undefined
     }));
   } catch (err) {
     console.error("Supabase fetchFiles error:", err);
@@ -190,7 +240,7 @@ export async function fetchFilesFromSupabase(): Promise<FileMapping[] | null> {
 
 /**
  * Insert a brand new file row into Supabase.
- * Always performs an INSERT to ensure multiple files can coexist.
+ * Inserts to both 'educational_files' and 'files' for complete compatibility.
  */
 export async function insertFileToSupabase(file: FileMapping): Promise<boolean> {
   const supabase = getSupabaseClient();
@@ -214,16 +264,20 @@ export async function insertFileToSupabase(file: FileMapping): Promise<boolean> 
       file_url: (file as any).fileUrl || null
     };
 
-    const { error } = await supabase
-      .from('educational_files')
-      .insert(payload);
+    // Insert into educational_files
+    try {
+      const { error } = await supabase.from('educational_files').upsert(payload, { onConflict: 'id' });
+      if (error) console.warn("Supabase educational_files upsert notice:", error);
+    } catch (e) {
+      console.warn("educational_files write err:", e);
+    }
 
-    if (error) {
-      console.warn("Supabase direct insert notice, attempting upsert with unique ID:", error);
-      const { error: upsertErr } = await supabase
-        .from('educational_files')
-        .upsert(payload, { onConflict: 'id' });
-      if (upsertErr) throw upsertErr;
+    // Insert into files table as well
+    try {
+      const { error } = await supabase.from('files').upsert(payload, { onConflict: 'id' });
+      if (error) console.warn("Supabase files upsert notice:", error);
+    } catch (e) {
+      console.warn("files write err:", e);
     }
 
     return true;
@@ -257,15 +311,8 @@ export async function updateFileInSupabase(file: FileMapping): Promise<boolean> 
       file_url: (file as any).fileUrl || null
     };
 
-    const { error } = await supabase
-      .from('educational_files')
-      .update(payload)
-      .eq('id', file.id);
-
-    if (error) {
-      console.error("Supabase update error:", error);
-      throw error;
-    }
+    await supabase.from('educational_files').update(payload).eq('id', file.id);
+    await supabase.from('files').update(payload).eq('id', file.id);
 
     return true;
   } catch (err) {
@@ -275,41 +322,7 @@ export async function updateFileInSupabase(file: FileMapping): Promise<boolean> 
 }
 
 export async function upsertFileToSupabase(file: FileMapping): Promise<boolean> {
-  const supabase = getSupabaseClient();
-  if (!supabase) return false;
-
-  try {
-    const payload = {
-      id: file.id,
-      filename: file.filename,
-      category: file.category,
-      file_type: file.fileType,
-      is_boundary_layer: Boolean(file.isBoundaryLayer),
-      lat_column: file.latColumn || null,
-      lng_column: file.lngColumn || null,
-      name_column: file.nameColumn || null,
-      headers: file.headers || null,
-      display_columns: file.displayColumns || null,
-      filter_mappings: file.filterMappings || null,
-      data: file.data || null,
-      file_content: typeof file.fileContent === 'string' ? file.fileContent : null,
-      file_url: (file as any).fileUrl || null
-    };
-
-    const { error } = await supabase
-      .from('educational_files')
-      .upsert(payload, { onConflict: 'id' });
-
-    if (error) {
-      console.error("Supabase upsert error:", error);
-      throw error;
-    }
-
-    return true;
-  } catch (err) {
-    console.error("Failed to upsert file to Supabase:", err);
-    throw err;
-  }
+  return insertFileToSupabase(file);
 }
 
 export async function deleteFileFromSupabase(fileId: string): Promise<boolean> {
@@ -317,16 +330,49 @@ export async function deleteFileFromSupabase(fileId: string): Promise<boolean> {
   if (!supabase) return false;
 
   try {
-    const { error } = await supabase
-      .from('educational_files')
-      .delete()
-      .eq('id', fileId);
-
-    if (error) throw error;
+    await supabase.from('educational_files').delete().eq('id', fileId);
+    await supabase.from('files').delete().eq('id', fileId);
     return true;
   } catch (err) {
     console.error("Failed to delete file from Supabase:", err);
     throw err;
+  }
+}
+
+/**
+ * Realtime subscription to any changes on the files database
+ */
+export function subscribeToFilesChanges(onChanged: () => void): () => void {
+  const supabase = getSupabaseClient();
+  if (!supabase) return () => {};
+
+  try {
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'educational_files' },
+        () => {
+          console.log(">>> [REALTIME] Supabase educational_files table changed! Refreshing UI...");
+          onChanged();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'files' },
+        () => {
+          console.log(">>> [REALTIME] Supabase files table changed! Refreshing UI...");
+          onChanged();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  } catch (e) {
+    console.warn("Realtime subscription setup failed:", e);
+    return () => {};
   }
 }
 

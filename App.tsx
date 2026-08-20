@@ -10,6 +10,7 @@ import { PrintReportModal } from './components/modals/PrintReportModal';
 import type { EducationalPlace, FilterState, Category, User, FileMapping, SchoolFilters, EarlyChildhoodFilters, DisabilitySupportFilters, SpecialEducationFilters, LandFilters, ProjectFilters, BuildingFilters } from './types';
 import { Search, Menu, SlidersHorizontal } from 'lucide-react';
 import { getAllFiles, deleteFile, putFile } from './lib/db';
+import { subscribeToFilesChanges } from './lib/supabase';
 import AdminPanel from './components/admin/AdminPanel';
 import type * as GeoJSON from 'geojson';
 // Local-Only Mode: Removed Firebase Auth import
@@ -1450,7 +1451,15 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     }, []);
 
-    useEffect(() => { loadMapData(); }, [loadMapData]);
+    useEffect(() => { 
+        loadMapData(); 
+        const unsubscribe = subscribeToFilesChanges(() => {
+            loadMapData();
+        });
+        return () => {
+            unsubscribe();
+        };
+    }, [loadMapData]);
     
     const clearBoundaryCaches = () => {
         cachedBoundaryKey = null;

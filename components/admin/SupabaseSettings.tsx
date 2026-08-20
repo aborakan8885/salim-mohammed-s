@@ -170,7 +170,7 @@ export const SupabaseSettings: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="flex gap-3 pt-2">
+                <div className="flex flex-wrap gap-3 pt-2">
                     <Button
                         onClick={handleSaveAndTest}
                         disabled={testingConnection}
@@ -179,6 +179,22 @@ export const SupabaseSettings: React.FC = () => {
                         {testingConnection ? <RefreshCw className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
                         <span>حفظ واختبار الاتصال السحابي</span>
                     </Button>
+
+                    {url && anonKey && (
+                        <Button
+                            variant="secondary"
+                            onClick={() => {
+                                const currentOrigin = window.location.origin + window.location.pathname;
+                                const shareUrl = `${currentOrigin}?sb_url=${encodeURIComponent(url)}&sb_key=${encodeURIComponent(anonKey)}`;
+                                navigator.clipboard.writeText(shareUrl);
+                                alert('تم نسخ رابط الربط السحابي المباشر! يمكنك الآن فتح هذا الرابط في أي جهاز آخر لربطه بسحابة Supabase فوراً وبشكل دائم.');
+                            }}
+                            className="bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 rounded-xl font-bold gap-2 text-xs"
+                        >
+                            <Link2 className="h-4 w-4 text-blue-600" />
+                            <span>نسخ رابط الربط المباشر للأجهزة الأخرى</span>
+                        </Button>
+                    )}
                 </div>
             </div>
 
