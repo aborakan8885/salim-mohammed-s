@@ -120,11 +120,11 @@ ALTER TABLE public.files DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.feedback DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.users DISABLE ROW LEVEL SECURITY;
 
--- في حال رغبت في الإبقاء على RLS وتفعيل الوصول العام (Anonymous Write):
--- DROP POLICY IF EXISTS "Allow all" ON public.educational_files;
--- CREATE POLICY "Allow all" ON public.educational_files FOR ALL USING (true) WITH CHECK (true);
+-- 5. زيادة وقت مهلة الاستعلام (Statement Timeout) لتفادي أخطاء الرفع الضخم
+-- ملاحظة: قد تحتاج لتنفيذ هذا الأمر بصلاحيات superuser في Supabase
+ALTER ROLE authenticator SET statement_timeout = '120s';
 
--- 5. إنشاء وتأمين مخزن الملفات السحابي (Storage Bucket)
+-- 6. إنشاء وتأمين مخزن الملفات السحابي (Storage Bucket)
 INSERT INTO storage.buckets (id, name, public) 
 VALUES ('educational-files', 'educational-files', true)
 ON CONFLICT (id) DO NOTHING;
@@ -226,19 +226,13 @@ export async function insertFileToSupabase(file: FileMapping): Promise<boolean> 
 
     console.log(">>> [SUPABASE] Attempting to INSERT file metadata into cloud database:", file.filename);
 
-    // Attempt to insert into both tables for redundancy and backward compatibility
-    const [eduResult, filesResult] = await Promise.all([
-      supabase.from('educational_files').upsert(payload, { onConflict: 'id' }),
-      supabase.from('files').upsert(payload, { onConflict: 'id' })
-    ]);
+    // Attempt to insert into the primary table
+    const { error: eduResultError } = await supabase.from('educational_files').upsert(payload, { onConflict: 'id' });
 
-    if (eduResult.error && filesResult.error) {
-      console.error(">>> [SUPABASE ERROR] Failed to save to BOTH tables:", eduResult.error, filesResult.error);
-      throw new Error(`فشل تسجيل الملف في السحابة: ${eduResult.error.message} && ${filesResult.error.message}`);
+    if (eduResultError) {
+      console.error(">>> [SUPABASE ERROR] Failed to save to educational_files:", eduResultError);
+      throw new Error(`فشل تسجيل الملف في السحابة: ${eduResultError.message}`);
     }
-
-    if (eduResult.error) console.warn("Supabase educational_files upsert notice:", eduResult.error);
-    if (filesResult.error) console.warn("Supabase files upsert notice:", filesResult.error);
 
     console.log(">>> [SUPABASE SUCCESS] File metadata recorded in cloud database.");
     return true;
@@ -273,8 +267,6 @@ export async function updateFileInSupabase(file: FileMapping): Promise<boolean> 
     };
 
     await supabase.from('educational_files').update(payload).eq('id', file.id);
-    await supabase.from('files').update(payload).eq('id', file.id);
-
     return true;
   } catch (err) {
     console.error("Failed to update file in Supabase:", err);
@@ -292,7 +284,6 @@ export async function deleteFileFromSupabase(fileId: string): Promise<boolean> {
 
   try {
     await supabase.from('educational_files').delete().eq('id', fileId);
-    await supabase.from('files').delete().eq('id', fileId);
     return true;
   } catch (err) {
     console.error("Failed to delete file from Supabase:", err);
@@ -315,14 +306,6 @@ export function subscribeToFilesChanges(onChanged: () => void): () => void {
         { event: '*', schema: 'public', table: 'educational_files' },
         () => {
           console.log(">>> [REALTIME] Supabase educational_files table changed! Refreshing UI...");
-          onChanged();
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'files' },
-        () => {
-          console.log(">>> [REALTIME] Supabase files table changed! Refreshing UI...");
           onChanged();
         }
       )

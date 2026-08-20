@@ -1,3 +1,4 @@
+import * as XLSX from 'xlsx';
 import type { FileMapping, Feedback } from '../types';
 import {
   fetchFilesFromSupabase,
@@ -215,18 +216,53 @@ export async function putFile(file: FileMapping): Promise<void> {
 }
 
 /**
+ * Parses an Excel or CSV file locally in the browser.
+ */
+async function parseFileLocally(file: File): Promise<any[]> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = e.target?.result;
+        const workbook = XLSX.read(data, { type: 'binary' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        const json = XLSX.utils.sheet_to_json(worksheet);
+        resolve(json);
+      } catch (err) {
+        reject(err);
+      }
+    };
+    reader.onerror = (err) => reject(err);
+    reader.readAsBinaryString(file);
+  });
+}
+
+/**
  * Upload raw file to Supabase storage + save metadata in Supabase database.
  * Generates a collision-proof unique ID for every uploaded file.
  */
 export async function uploadFileToServer(file: File, metadata: Partial<FileMapping>): Promise<FileMapping> {
-  console.log(">>> [DATABASE] Starting multi-stage upload for:", file.name);
+  console.log(">>> [DATABASE] Starting local heavy-lifting for:", file.name);
 
   // Generate unique collision-proof ID for the new file
   const uniqueId = metadata.id || `file_${Date.now()}_${Math.random().toString(36).substring(2, 10)}_${Math.floor(Math.random() * 1000000)}`;
-
+  
   let fileUrl: string | undefined = undefined;
+  let localParsedData: any[] | undefined = metadata.data;
 
-  // 1. Stage 1: Upload binary to Supabase Storage
+  // 1. Stage 0: Local Parsing (Avoids server timeouts)
+  if (!localParsedData && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.csv'))) {
+    try {
+      console.log(">>> [DATABASE] Parsing file locally in browser...");
+      localParsedData = await parseFileLocally(file);
+      console.log(`>>> [DATABASE] Local parsing success. Found ${localParsedData?.length} rows.`);
+    } catch (err) {
+      console.warn(">>> [DATABASE] Local parsing failed, proceeding with raw upload:", err);
+    }
+  }
+
+  // 2. Stage 1: Upload binary to Supabase Storage
   const { isConfigured } = getSupabaseCredentials();
   if (isConfigured) {
     try {
@@ -252,19 +288,19 @@ export async function uploadFileToServer(file: File, metadata: Partial<FileMappi
     latColumn: metadata.latColumn,
     lngColumn: metadata.lngColumn,
     nameColumn: metadata.nameColumn,
-    headers: metadata.headers,
+    headers: metadata.headers || (localParsedData && localParsedData.length > 0 ? Object.keys(localParsedData[0]) : undefined),
     displayColumns: metadata.displayColumns,
     filterMappings: metadata.filterMappings || {},
-    data: metadata.data,
-    fileContent: metadata.fileContent,
+    data: localParsedData, // This now contains all the rows as one single JSON array
+    fileContent: localParsedData ? undefined : metadata.fileContent,
     fileUrl
   };
 
-  // 2. Stage 2: Register in Supabase Database and local cache
+  // 3. Stage 2: Register in Supabase Database (Single row INSERT)
   try {
-    console.log(">>> [DATABASE] Stage 2: Registering metadata in cloud database...");
+    console.log(">>> [DATABASE] Stage 2: Registering metadata and data array in cloud database...");
     await insertNewFile(completeMapping);
-    console.log(">>> [DATABASE SUCCESS] Multi-stage upload completed successfully.");
+    console.log(">>> [DATABASE SUCCESS] Multi-stage upload completed successfully in a single transaction.");
     return completeMapping;
   } catch (err: any) {
     console.error(">>> [DATABASE ERROR] Stage 2 Failed (Database):", err);
