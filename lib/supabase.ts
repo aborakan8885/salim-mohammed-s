@@ -472,7 +472,8 @@ export async function uploadBlobToSupabaseStorage(blob: Blob, fileName: string, 
 
   try {
     const bucketName = 'educational-files';
-    const filePath = `${path}/${Date.now()}_${fileName}`.replace(/\/+/g, '/');
+    const cleanFileName = `${Date.now()}_${fileName.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+    const filePath = `${path}/${cleanFileName}`.replace(/\/+/g, '/');
 
     const { data, error } = await supabase.storage
       .from(bucketName)
@@ -482,7 +483,12 @@ export async function uploadBlobToSupabaseStorage(blob: Blob, fileName: string, 
         contentType: 'application/json'
       });
 
-    if (error) throw error;
+    if (error) {
+      if (error.message.includes('not found') || (error as any).status === 400 || (error as any).status === 404) {
+        throw new Error("عذراً، يجب إنشاء مخزن باسم 'educational-files' في Supabase وجعله عاماً (Public) أولاً.");
+      }
+      throw error;
+    }
 
     const { data: publicUrlData } = supabase.storage
       .from(bucketName)
@@ -515,6 +521,9 @@ export async function uploadFileToSupabaseStorage(file: File, path: string): Pro
 
     if (error) {
       console.error(">>> [SUPABASE STORAGE ERROR] Upload failed:", error);
+      if (error.message.includes('not found') || (error as any).status === 400 || (error as any).status === 404) {
+        throw new Error("عذراً، يجب إنشاء مخزن باسم 'educational-files' في Supabase وجعله عاماً (Public) أولاً.");
+      }
       throw new Error(`خطأ في رفع الملف سحابياً: ${error.message}`);
     }
 
