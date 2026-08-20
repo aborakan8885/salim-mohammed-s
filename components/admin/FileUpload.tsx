@@ -119,8 +119,11 @@ const FileUpload: React.FC = () => {
                 await Promise.all(existingFiles.map(f => f.isBoundaryLayer ? putFile({ ...f, isBoundaryLayer: false }) : Promise.resolve()));
             }
 
+            // Generate guaranteed unique, collision-proof ID
+            const fileUniqueId = `file_${Date.now()}_${Math.random().toString(36).substring(2, 10)}_${Math.floor(Math.random() * 1000000)}`;
+
             const finalMapping: Partial<FileMapping> = {
-                id: `${Date.now()}-${Math.random()}`,
+                id: fileUniqueId,
                 filename: file.name,
                 category: 'unassigned',
                 fileType,
@@ -133,12 +136,12 @@ const FileUpload: React.FC = () => {
                 ...fileMapping
             };
 
-            // Use the new FormData-based upload
+            // Direct Insert to Supabase Cloud & Local Storage
             await uploadFileToServer(file, finalMapping);
             await loadMapData();
 
             setStatus('success');
-            setMessage(`تم رفع الملف "${file.name}" بنجاح.`);
+            setMessage(`تم رفع وحفظ الملف "${file.name}" بنجاح في قاعدة البيانات السحابية.`);
             setFile(null);
         } catch (error: any) {
             console.error("File upload failed:", error);

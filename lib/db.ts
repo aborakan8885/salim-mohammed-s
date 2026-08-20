@@ -1,6 +1,8 @@
 import type { FileMapping, Feedback } from '../types';
 import {
   fetchFilesFromSupabase,
+  insertFileToSupabase,
+  updateFileInSupabase,
   upsertFileToSupabase,
   deleteFileFromSupabase,
   fetchFeedbackFromSupabase,
@@ -10,35 +12,132 @@ import {
   getSupabaseCredentials
 } from './supabase';
 
-const CACHED_FILES_KEY = 'educational_map_cached_files_v2';
+const CACHED_FILES_KEY = 'educational_map_cached_files_v3';
 const CACHED_FEEDBACK_KEY = 'educational_map_cached_feedback_v2';
+
+// In-memory array cache to ensure instant UI responsiveness
+let memoryFilesCache: FileMapping[] | null = null;
+
+// IndexedDB Helper for large local files storage
+const DB_NAME = 'EducationalMapIndexedDB';
+const DB_VERSION = 1;
+const STORE_NAME = 'files';
+
+function openIndexedDB(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    if (typeof window === 'undefined' || !window.indexedDB) {
+      return reject(new Error('IndexedDB not supported'));
+    }
+    const request = window.indexedDB.open(DB_NAME, DB_VERSION);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function saveFileToIndexedDB(file: FileMapping): Promise<void> {
+  try {
+    const db = await openIndexedDB();
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+    store.put(file);
+    await new Promise((resolve, reject) => {
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => reject(tx.error);
+    });
+  } catch (e) {
+    console.warn("IndexedDB save error:", e);
+  }
+}
+
+async function getAllFilesFromIndexedDB(): Promise<FileMapping[]> {
+  try {
+    const db = await openIndexedDB();
+    const tx = db.transaction(STORE_NAME, 'readonly');
+    const store = tx.objectStore(STORE_NAME);
+    const request = store.getAll();
+    return new Promise((resolve) => {
+      request.onsuccess = () => resolve(request.result || []);
+      request.onerror = () => resolve([]);
+    });
+  } catch (e) {
+    return [];
+  }
+}
+
+async function deleteFileFromIndexedDB(id: string): Promise<void> {
+  try {
+    const db = await openIndexedDB();
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+    store.delete(id);
+    await new Promise((resolve) => {
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => resolve(false);
+    });
+  } catch (e) {
+    console.warn("IndexedDB delete error:", e);
+  }
+}
 
 /**
  * Get all files: Checks Supabase cloud database first.
- * If Supabase is connected, loads directly from Supabase and updates local cache.
- * Otherwise, loads from client cache.
+ * Returns a full array of all uploaded files.
  */
 export async function getAllFiles(): Promise<FileMapping[]> {
   try {
     const supabaseFiles = await fetchFilesFromSupabase();
-    if (supabaseFiles !== null) {
-      // Save snapshot to local cache for instant load
+    if (supabaseFiles !== null && Array.isArray(supabaseFiles)) {
+      memoryFilesCache = [...supabaseFiles];
+      
+      // Cache in IndexedDB asynchronously
+      supabaseFiles.forEach(f => saveFileToIndexedDB(f).catch(() => {}));
+
+      // Cache metadata in localStorage
       try {
-        localStorage.setItem(CACHED_FILES_KEY, JSON.stringify(supabaseFiles));
+        const metadataOnly = supabaseFiles.map(f => ({
+          ...f,
+          data: (f.data && f.data.length > 500) ? f.data.slice(0, 100) : f.data,
+          fileContent: typeof f.fileContent === 'string' && f.fileContent.length > 10000 ? undefined : f.fileContent
+        }));
+        localStorage.setItem(CACHED_FILES_KEY, JSON.stringify(metadataOnly));
       } catch (e) {
-        console.warn("Could not cache full dataset in localStorage (size limit)");
+        // quota reached, ignore
       }
       return supabaseFiles;
     }
   } catch (error) {
-    console.warn("Supabase load failed, falling back to cache:", error);
+    console.warn("Supabase load failed, falling back to local storage:", error);
   }
 
-  // Fallback to local client cache
+  // 2. Check in-memory cache
+  if (memoryFilesCache && memoryFilesCache.length > 0) {
+    return memoryFilesCache;
+  }
+
+  // 3. Fallback to IndexedDB (stores full size)
+  try {
+    const idbFiles = await getAllFilesFromIndexedDB();
+    if (idbFiles && idbFiles.length > 0) {
+      memoryFilesCache = idbFiles;
+      return idbFiles;
+    }
+  } catch (e) {
+    console.warn("IndexedDB load error:", e);
+  }
+
+  // 4. Fallback to localStorage cache
   try {
     const cached = localStorage.getItem(CACHED_FILES_KEY);
     if (cached) {
-      return JSON.parse(cached);
+      const parsed = JSON.parse(cached);
+      memoryFilesCache = parsed;
+      return parsed;
     }
   } catch (e) {
     console.error("Local cache load error:", e);
@@ -48,46 +147,82 @@ export async function getAllFiles(): Promise<FileMapping[]> {
 }
 
 /**
- * Save or update file mapping.
- * Writes directly to Supabase cloud and updates local cache.
+ * Insert a brand new file into Supabase Cloud & Local Storage.
+ * Always appends to the collection without replacing existing files.
  */
-export async function putFile(file: FileMapping): Promise<void> {
-  console.log(">>> [DATABASE] Saving file mapping:", file.filename);
+export async function insertNewFile(file: FileMapping): Promise<void> {
+  console.log(">>> [DATABASE] Inserting NEW file row:", file.filename, "with ID:", file.id);
 
-  // 1. Update local cache immediately
-  try {
-    const cached = localStorage.getItem(CACHED_FILES_KEY);
-    let files: FileMapping[] = cached ? JSON.parse(cached) : [];
-    const index = files.findIndex(f => f.id === file.id);
-    if (index >= 0) {
-      files[index] = file;
-    } else {
-      files.push(file);
-    }
-    localStorage.setItem(CACHED_FILES_KEY, JSON.stringify(files));
-  } catch (e) {
-    console.warn("Cache save warning:", e);
+  // 1. Update memory cache
+  if (!memoryFilesCache) memoryFilesCache = [];
+  const existingIndex = memoryFilesCache.findIndex(f => f.id === file.id);
+  if (existingIndex >= 0) {
+    memoryFilesCache[existingIndex] = file;
+  } else {
+    memoryFilesCache.unshift(file);
   }
 
-  // 2. Sync to Supabase Cloud if configured
+  // 2. Save to IndexedDB
+  await saveFileToIndexedDB(file);
+
+  // 3. Sync to Supabase Cloud via INSERT
   const { isConfigured } = getSupabaseCredentials();
   if (isConfigured) {
     try {
-      await upsertFileToSupabase(file);
-      console.log(">>> [SUPABASE] Successfully saved to cloud database.");
+      await insertFileToSupabase(file);
+      console.log(">>> [SUPABASE] Successfully inserted new file row into cloud database.");
     } catch (err: any) {
-      console.error(">>> [SUPABASE] Cloud save error:", err);
-      throw new Error(`خطأ في حفظ البيانات في سحابة Supabase: ${err.message || ''}`, { cause: err });
+      console.error(">>> [SUPABASE] Cloud insert error:", err);
+      throw new Error(`خطأ في حفظ الملف في سحابة Supabase: ${err.message || ''}`, { cause: err });
+    }
+  }
+}
+
+/**
+ * Save or update an existing file mapping (e.g. changing category or coordinate mapping).
+ */
+export async function putFile(file: FileMapping): Promise<void> {
+  console.log(">>> [DATABASE] Updating file mapping:", file.filename, "ID:", file.id);
+
+  // 1. Update memory cache
+  if (!memoryFilesCache) memoryFilesCache = [];
+  const index = memoryFilesCache.findIndex(f => f.id === file.id);
+  if (index >= 0) {
+    memoryFilesCache[index] = file;
+  } else {
+    memoryFilesCache.unshift(file);
+  }
+
+  // 2. Save to IndexedDB
+  await saveFileToIndexedDB(file);
+
+  // 3. Sync to Supabase Cloud
+  const { isConfigured } = getSupabaseCredentials();
+  if (isConfigured) {
+    try {
+      await updateFileInSupabase(file);
+      console.log(">>> [SUPABASE] Successfully updated file in cloud database.");
+    } catch (err: any) {
+      // If not existing yet, upsert
+      try {
+        await upsertFileToSupabase(file);
+      } catch (upsertErr: any) {
+        console.error(">>> [SUPABASE] Cloud update error:", upsertErr);
+        throw new Error(`خطأ في تحديث البيانات في سحابة Supabase: ${upsertErr.message || ''}`, { cause: upsertErr });
+      }
     }
   }
 }
 
 /**
  * Upload raw file to Supabase storage + save metadata in Supabase database.
- * Completely runs in the client browser - ZERO 405 Express Errors!
+ * Generates a collision-proof unique ID for every uploaded file.
  */
-export async function uploadFileToServer(file: File, metadata: Partial<FileMapping>): Promise<void> {
+export async function uploadFileToServer(file: File, metadata: Partial<FileMapping>): Promise<FileMapping> {
   console.log(">>> [DATABASE] Uploading file directly from browser:", file.name);
+
+  // Generate unique collision-proof ID for the new file
+  const uniqueId = metadata.id || `file_${Date.now()}_${Math.random().toString(36).substring(2, 10)}_${Math.floor(Math.random() * 1000000)}`;
 
   let fileUrl: string | undefined = undefined;
 
@@ -106,7 +241,7 @@ export async function uploadFileToServer(file: File, metadata: Partial<FileMappi
   }
 
   const completeMapping: FileMapping = {
-    id: metadata.id || `file-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+    id: uniqueId,
     filename: file.name,
     category: metadata.category || 'unassigned',
     fileType: metadata.fileType || 'tabular',
@@ -122,15 +257,24 @@ export async function uploadFileToServer(file: File, metadata: Partial<FileMappi
     fileUrl
   };
 
-  // 2. Save file mapping and parsed data
-  await putFile(completeMapping);
+  // 2. Insert as a brand new row in Supabase and storage
+  await insertNewFile(completeMapping);
+  return completeMapping;
 }
 
 /**
- * Delete file from Supabase Cloud + Local Cache
+ * Delete file from Supabase Cloud + Local Storage
  */
 export async function deleteFile(fileId: string): Promise<void> {
-  // 1. Remove from local cache
+  // 1. Remove from memory cache
+  if (memoryFilesCache) {
+    memoryFilesCache = memoryFilesCache.filter(f => f.id !== fileId);
+  }
+
+  // 2. Remove from IndexedDB
+  await deleteFileFromIndexedDB(fileId);
+
+  // 3. Remove from localStorage
   try {
     const cached = localStorage.getItem(CACHED_FILES_KEY);
     if (cached) {
@@ -139,16 +283,16 @@ export async function deleteFile(fileId: string): Promise<void> {
       localStorage.setItem(CACHED_FILES_KEY, JSON.stringify(filtered));
     }
   } catch (e) {
-    console.error("Local delete error:", e);
+    // ignore
   }
 
-  // 2. Delete from Supabase if configured
+  // 4. Delete from Supabase Cloud
   const { isConfigured } = getSupabaseCredentials();
   if (isConfigured) {
     try {
       await deleteFileFromSupabase(fileId);
-      console.log(">>> [SUPABASE] Deleted file from cloud.");
-    } catch (err: any) {
+      console.log(">>> [SUPABASE] Successfully deleted file from cloud database.");
+    } catch (err) {
       console.error(">>> [SUPABASE] Cloud delete error:", err);
       throw err;
     }

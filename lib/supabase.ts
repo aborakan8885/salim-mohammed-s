@@ -46,7 +46,7 @@ export function getSupabaseClient(): SupabaseClient | null {
 // ----------------------------------------------------
 // SQL Schema definition for 1-click execution in Supabase
 // ----------------------------------------------------
-export const SUPABASE_SQL_SCHEMA = `-- 1. إنشاء جدول الملفات والخرائط
+export const SUPABASE_SQL_SCHEMA = `-- 1. إنشاء جدول الملفات والخرائط بدون أي قيود تمنع تكرار الملفات أو الفئات
 CREATE TABLE IF NOT EXISTS public.educational_files (
     id TEXT PRIMARY KEY,
     filename TEXT NOT NULL,
@@ -64,6 +64,12 @@ CREATE TABLE IF NOT EXISTS public.educational_files (
     file_url TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+-- إزالة أي قيود فريدة سابقة قد تمنع رفع عدة ملفات
+ALTER TABLE public.educational_files DROP CONSTRAINT IF EXISTS educational_files_category_key;
+ALTER TABLE public.educational_files DROP CONSTRAINT IF EXISTS educational_files_filename_key;
+ALTER TABLE public.educational_files DROP CONSTRAINT IF EXISTS educational_files_file_type_key;
+ALTER TABLE public.educational_files DROP CONSTRAINT IF EXISTS educational_files_category_unique;
 
 -- 2. إنشاء جدول الملاحظات والمقترحات
 CREATE TABLE IF NOT EXISTS public.feedback (
@@ -94,14 +100,34 @@ ALTER TABLE public.educational_files ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.feedback ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Allow public read on educational_files" ON public.educational_files;
 CREATE POLICY "Allow public read on educational_files" ON public.educational_files FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow public insert on educational_files" ON public.educational_files;
+CREATE POLICY "Allow public insert on educational_files" ON public.educational_files FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public update on educational_files" ON public.educational_files;
+CREATE POLICY "Allow public update on educational_files" ON public.educational_files FOR UPDATE USING (true);
+
+DROP POLICY IF EXISTS "Allow public delete on educational_files" ON public.educational_files;
+CREATE POLICY "Allow public delete on educational_files" ON public.educational_files FOR DELETE USING (true);
+
+DROP POLICY IF EXISTS "Allow public write on educational_files" ON public.educational_files;
 CREATE POLICY "Allow public write on educational_files" ON public.educational_files FOR ALL USING (true);
 
+DROP POLICY IF EXISTS "Allow public read on feedback" ON public.feedback;
 CREATE POLICY "Allow public read on feedback" ON public.feedback FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow public insert on feedback" ON public.feedback;
 CREATE POLICY "Allow public insert on feedback" ON public.feedback FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public delete on feedback" ON public.feedback;
 CREATE POLICY "Allow public delete on feedback" ON public.feedback FOR DELETE USING (true);
 
+DROP POLICY IF EXISTS "Allow public read on users" ON public.users;
 CREATE POLICY "Allow public read on users" ON public.users FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Allow public write on users" ON public.users;
 CREATE POLICY "Allow public write on users" ON public.users FOR ALL USING (true);
 
 -- 5. إنشاء مخزن الملفات السحابي (Storage Bucket)
@@ -109,8 +135,13 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('educational-files', 'educational-files', true)
 ON CONFLICT (id) DO NOTHING;
 
+DROP POLICY IF EXISTS "Allow public read on storage" ON storage.objects;
 CREATE POLICY "Allow public read on storage" ON storage.objects FOR SELECT USING (bucket_id = 'educational-files');
+
+DROP POLICY IF EXISTS "Allow public upload on storage" ON storage.objects;
 CREATE POLICY "Allow public upload on storage" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'educational-files');
+
+DROP POLICY IF EXISTS "Allow public delete on storage" ON storage.objects;
 CREATE POLICY "Allow public delete on storage" ON storage.objects FOR DELETE USING (bucket_id = 'educational-files');
 `;
 
@@ -136,11 +167,11 @@ export async function fetchFilesFromSupabase(): Promise<FileMapping[] | null> {
     if (!data) return [];
 
     return data.map(item => ({
-      id: item.id,
+      id: String(item.id),
       filename: item.filename,
       category: item.category as any,
       fileType: item.file_type as any,
-      isBoundaryLayer: item.is_boundary_layer,
+      isBoundaryLayer: Boolean(item.is_boundary_layer),
       latColumn: item.lat_column || undefined,
       lngColumn: item.lng_column || undefined,
       nameColumn: item.name_column || undefined,
@@ -154,6 +185,92 @@ export async function fetchFilesFromSupabase(): Promise<FileMapping[] | null> {
   } catch (err) {
     console.error("Supabase fetchFiles error:", err);
     return null;
+  }
+}
+
+/**
+ * Insert a brand new file row into Supabase.
+ * Always performs an INSERT to ensure multiple files can coexist.
+ */
+export async function insertFileToSupabase(file: FileMapping): Promise<boolean> {
+  const supabase = getSupabaseClient();
+  if (!supabase) return false;
+
+  try {
+    const payload = {
+      id: file.id,
+      filename: file.filename,
+      category: file.category || 'unassigned',
+      file_type: file.fileType,
+      is_boundary_layer: Boolean(file.isBoundaryLayer),
+      lat_column: file.latColumn || null,
+      lng_column: file.lngColumn || null,
+      name_column: file.nameColumn || null,
+      headers: file.headers || null,
+      display_columns: file.displayColumns || null,
+      filter_mappings: file.filterMappings || null,
+      data: file.data || null,
+      file_content: typeof file.fileContent === 'string' ? file.fileContent : null,
+      file_url: (file as any).fileUrl || null
+    };
+
+    const { error } = await supabase
+      .from('educational_files')
+      .insert(payload);
+
+    if (error) {
+      console.warn("Supabase direct insert notice, attempting upsert with unique ID:", error);
+      const { error: upsertErr } = await supabase
+        .from('educational_files')
+        .upsert(payload, { onConflict: 'id' });
+      if (upsertErr) throw upsertErr;
+    }
+
+    return true;
+  } catch (err) {
+    console.error("Failed to insert file to Supabase:", err);
+    throw err;
+  }
+}
+
+/**
+ * Update an existing file by its unique ID
+ */
+export async function updateFileInSupabase(file: FileMapping): Promise<boolean> {
+  const supabase = getSupabaseClient();
+  if (!supabase) return false;
+
+  try {
+    const payload = {
+      filename: file.filename,
+      category: file.category,
+      file_type: file.fileType,
+      is_boundary_layer: Boolean(file.isBoundaryLayer),
+      lat_column: file.latColumn || null,
+      lng_column: file.lngColumn || null,
+      name_column: file.nameColumn || null,
+      headers: file.headers || null,
+      display_columns: file.displayColumns || null,
+      filter_mappings: file.filterMappings || null,
+      data: file.data || null,
+      file_content: typeof file.fileContent === 'string' ? file.fileContent : null,
+      file_url: (file as any).fileUrl || null
+    };
+
+    const { error } = await supabase
+      .from('educational_files')
+      .update(payload)
+      .eq('id', file.id);
+
+    if (error) {
+      console.error("Supabase update error:", error);
+      throw error;
+    }
+
+    return true;
+  } catch (err) {
+    console.error("Failed to update file in Supabase:", err);
+    throw err;
   }
 }
 

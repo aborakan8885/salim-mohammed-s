@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { Trash2, FileText, Map, Loader2, ChevronDown, ChevronUp, CheckCircle, Target } from 'lucide-react';
+import { Trash2, FileText, Map, Loader2, ChevronDown, ChevronUp, CheckCircle, Target, RefreshCw, Layers } from 'lucide-react';
 import { useData } from '../../App';
 import { Button } from '../ui/Button';
 import type { FileMapping, FilterColumnMappings } from '../../types';
@@ -56,17 +56,28 @@ const FileManagement: React.FC = () => {
     const { 
         fileMappings, 
         isLoading: isContextLoading, 
+        loadMapData,
         deleteFileAndUpdateState, 
         updateFileAndUpdateState,
         setBoundaryLayerAndUpdateState
     } = useData();
     
     const [isUpdating, setIsUpdating] = useState<string | null>(null);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [fileToDelete, setFileToDelete] = useState<FileMapping | null>(null);
     const [expandedFileId, setExpandedFileId] = useState<string | null>(null);
 
     const toggleExpand = (fileId: string) => {
         setExpandedFileId(prev => (prev === fileId ? null : fileId));
+    };
+
+    const handleRefresh = async () => {
+        setIsRefreshing(true);
+        try {
+            await loadMapData();
+        } finally {
+            setIsRefreshing(false);
+        }
     };
 
     const handleConfirmDelete = async () => {
@@ -105,8 +116,6 @@ const FileManagement: React.FC = () => {
                 
                 const foundHeader = findHeaderMatch(headers, keywords);
                 if (foundHeader) {
-                    // FIX: Use a type assertion to work around TypeScript's limitation in correlating
-                    // the 'isMulti' flag with the specific property type of FilterColumnMappings.
                     (newFilterMappings as any)[field.key] = field.isMulti ? [foundHeader] : foundHeader;
                 }
             }
@@ -161,9 +170,9 @@ const FileManagement: React.FC = () => {
         } finally {
             setIsUpdating(null);
         }
-    }
+    };
 
-    // FIX: Cast Object.values(fileMappings) to FileMapping[] to ensure correctly typed elements for the sort and subsequent maps.
+    // Cast Object.values(fileMappings) to FileMapping[] to ensure correctly typed elements
     const sortedFiles = useMemo(() => 
         (Object.values(fileMappings) as FileMapping[]).sort((a, b) => a.filename.localeCompare(b.filename)),
         [fileMappings]
@@ -171,33 +180,58 @@ const FileManagement: React.FC = () => {
 
     return (
         <div>
-            <h3 className="text-xl font-bold text-primary-dark mb-4">إدارة وربط الملفات</h3>
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                <div className="flex items-center gap-3">
+                    <h3 className="text-xl font-bold text-primary-dark">إدارة وربط الملفات</h3>
+                    <span className="bg-primary-light/10 text-primary-dark font-bold text-xs px-2.5 py-1 rounded-full border border-primary-light/20 flex items-center gap-1.5">
+                        <Layers className="w-3.5 h-3.5" />
+                        {sortedFiles.length} {sortedFiles.length === 1 ? 'ملف مرفوع' : sortedFiles.length === 2 ? 'ملفان مرفوعان' : 'ملفات مرفوعة'}
+                    </span>
+                </div>
+                <Button 
+                    size="sm" 
+                    variant="secondary" 
+                    onClick={handleRefresh} 
+                    disabled={isRefreshing || isContextLoading}
+                    className="flex items-center gap-1.5 text-xs text-gray-700 bg-gray-100 hover:bg-gray-200"
+                >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+                    تحديث القائمة من السحابة
+                </Button>
+            </div>
+
             <div className="p-4 bg-white rounded-lg border">
                 {isContextLoading ? (
                     <div className="flex items-center justify-center p-8">
                         <Loader2 className="h-8 w-8 animate-spin text-primary-light" />
-                        <span className="mr-3 text-gray-600">جاري تحميل الملفات...</span>
+                        <span className="mr-3 text-gray-600">جاري تحميل وتحديث الملفات من السحابة...</span>
                     </div>
                 ) : sortedFiles.length > 0 ? (
                     <div className="overflow-x-auto">
                         <table className="w-full text-sm text-right">
                             <thead className="bg-gray-50">
                                 <tr>
-                                    <th className="px-4 py-2 font-semibold text-gray-600">اسم الملف</th>
-                                    <th className="px-4 py-2 font-semibold text-gray-600">الفئة</th>
-                                    <th className="px-4 py-2 font-semibold text-gray-600">استخدام كحدود</th>
-                                    <th className="px-4 py-2 font-semibold text-gray-600">الحالة</th>
-                                    <th className="px-4 py-2 font-semibold text-gray-600 text-center">ربط الأعمدة</th>
-                                    <th className="px-4 py-2 font-semibold text-gray-600 text-center">إجراءات</th>
+                                    <th className="px-4 py-2.5 font-semibold text-gray-600">اسم الملف والبيانات</th>
+                                    <th className="px-4 py-2.5 font-semibold text-gray-600">الفئة</th>
+                                    <th className="px-4 py-2.5 font-semibold text-gray-600 text-center">استخدام كحدود</th>
+                                    <th className="px-4 py-2.5 font-semibold text-gray-600 text-center">حالة الربط</th>
+                                    <th className="px-4 py-2.5 font-semibold text-gray-600 text-center">ربط الأعمدة</th>
+                                    <th className="px-4 py-2.5 font-semibold text-gray-600 text-center">حذف</th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y">
                                 {sortedFiles.map(file => (
                                     <React.Fragment key={file.id}>
-                                        <tr className={isUpdating === file.id ? 'opacity-50' : ''}>
-                                            <td className="px-4 py-3 text-gray-800 font-medium flex items-center gap-2">
-                                                {file.fileType === 'tabular' ? <FileText className="h-4 w-4 text-gray-400" /> : <Map className="h-4 w-4 text-gray-400" />}
-                                                {file.filename}
+                                        <tr className={isUpdating === file.id ? 'opacity-50' : 'hover:bg-gray-50/50'}>
+                                            <td className="px-4 py-3 text-gray-800 font-medium">
+                                                <div className="flex items-center gap-2">
+                                                    {file.fileType === 'tabular' ? <FileText className="h-4 w-4 text-emerald-600 shrink-0" /> : <Map className="h-4 w-4 text-blue-600 shrink-0" />}
+                                                    <span className="font-semibold">{file.filename}</span>
+                                                </div>
+                                                <div className="text-[11px] text-gray-400 mt-0.5 flex items-center gap-2">
+                                                    <span>النوع: {file.fileType.toUpperCase()}</span>
+                                                    {file.data && <span>• {file.data.length} سجل</span>}
+                                                </div>
                                             </td>
                                             <td className="px-4 py-3 text-gray-600 w-48">
                                                 <select
@@ -257,29 +291,29 @@ const FileManagement: React.FC = () => {
                                             <td className="px-4 py-3 text-gray-600 w-48 text-center">
                                                 {(file.fileType === 'kmz' || file.fileType === 'kml' || file.fileType === 'geojson' || file.fileType === 'json' || !!file.fileContent) && (
                                                     file.isBoundaryLayer ? (
-                                                         <span className="flex items-center justify-center gap-1.5 text-sm font-semibold text-green-700 bg-green-100 px-2 py-1 rounded-full">
-                                                            <CheckCircle className="h-4 w-4" />
+                                                         <span className="inline-flex items-center justify-center gap-1.5 text-xs font-semibold text-green-700 bg-green-100 px-3 py-1 rounded-full">
+                                                            <CheckCircle className="h-3.5 w-3.5" />
                                                             طبقة الحدود
                                                         </span>
                                                     ) : (
-                                                        <Button size="sm" variant="secondary" className="gap-1.5" onClick={() => setBoundaryLayerAndUpdateState(file.id)} disabled={isUpdating === file.id}>
-                                                            <Target className="h-4 w-4" />
-                                                            تعيين
+                                                        <Button size="sm" variant="secondary" className="gap-1.5 text-xs" onClick={() => setBoundaryLayerAndUpdateState(file.id)} disabled={isUpdating === file.id}>
+                                                            <Target className="h-3.5 w-3.5" />
+                                                            تعيين كحدود
                                                         </Button>
                                                     )
                                                 )}
                                             </td>
-                                            <td className="px-4 py-3">
+                                            <td className="px-4 py-3 text-center">
                                                 {file.category !== 'unassigned' ? 
-                                                    <span className="px-2 py-1 text-xs font-semibold text-green-800 bg-green-100 rounded-full">مرتبط</span> :
-                                                    <span className="px-2 py-1 text-xs font-semibold text-yellow-800 bg-yellow-100 rounded-full">غير مرتبط</span>
+                                                    <span className="px-2.5 py-1 text-xs font-semibold text-green-800 bg-green-100 rounded-full">مرتبط</span> :
+                                                    <span className="px-2.5 py-1 text-xs font-semibold text-yellow-800 bg-yellow-100 rounded-full">غير مرتبط</span>
                                                 }
                                             </td>
                                             <td className="px-4 py-3 text-center">
                                                 {file.fileType === 'tabular' && file.category !== 'unassigned' && (
-                                                    <Button size="sm" variant="ghost" className="text-primary-dark hover:bg-primary-dark/10 gap-1" onClick={() => toggleExpand(file.id)} disabled={isUpdating === file.id}>
+                                                    <Button size="sm" variant="ghost" className="text-primary-dark hover:bg-primary-dark/10 gap-1 text-xs" onClick={() => toggleExpand(file.id)} disabled={isUpdating === file.id}>
                                                         {expandedFileId === file.id ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                                                        <span>{expandedFileId === file.id ? 'إغلاق' : 'فتح'}</span>
+                                                        <span>{expandedFileId === file.id ? 'إغلاق' : 'تخصيص'}</span>
                                                     </Button>
                                                 )}
                                             </td>
@@ -288,7 +322,7 @@ const FileManagement: React.FC = () => {
                                                     {isUpdating === file.id ? (
                                                         <Loader2 className="h-5 w-5 animate-spin text-gray-500" />
                                                     ) : (
-                                                        <Button variant="secondary" size="sm" className="bg-red-50 text-red-600 hover:bg-red-100" onClick={() => setFileToDelete(file)}>
+                                                        <Button variant="secondary" size="sm" className="bg-red-50 text-red-600 hover:bg-red-100 p-1.5" onClick={() => setFileToDelete(file)}>
                                                             <Trash2 className="h-4 w-4" />
                                                         </Button>
                                                     )}
