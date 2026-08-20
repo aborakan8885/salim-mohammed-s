@@ -267,22 +267,35 @@ export async function uploadFileToServer(file: File, metadata: Partial<FileMappi
   const { isConfigured } = getSupabaseCredentials();
   if (isConfigured) {
     try {
-      // 2a. Upload Original File
+      // 2a. Upload Original File (Binary)
       const publicUrl = await uploadFileToSupabaseStorage(file, 'uploads');
       if (publicUrl) {
         fileUrl = publicUrl;
         console.log(">>> [DATABASE] Stage 1a Success: File binary stored at", fileUrl);
       }
 
-      // 2b. Upload Parsed JSON Cache (If applicable) - This is the "PRO" speed solution
-      if (localParsedData && localParsedData.length > 0) {
-        console.log(">>> [DATABASE] Stage 1b: Uploading JSON data cache to storage...");
-        const jsonBlob = new Blob([JSON.stringify(localParsedData)], { type: 'application/json' });
-        const jsonUrl = await uploadBlobToSupabaseStorage(jsonBlob, `${uniqueId}.json`, 'data-cache');
-        if (jsonUrl) {
-          (metadata as any).dataUrl = jsonUrl;
-          console.log(">>> [DATABASE] Stage 1b Success: Data cache stored at", jsonUrl);
-        }
+      // 2b. Prepare COMPLETE metadata for Storage (This avoids DB timeouts for large JSON)
+      const fullMappingForStorage = {
+        ...metadata,
+        id: uniqueId,
+        filename: file.name,
+        headers: metadata.headers || (localParsedData && localParsedData.length > 0 ? Object.keys(localParsedData[0]) : undefined),
+        displayColumns: metadata.displayColumns,
+        filterMappings: metadata.filterMappings || {},
+        data: localParsedData,
+        fileUrl,
+        lastUpdated: new Date().toISOString()
+      };
+
+      console.log(">>> [DATABASE] Stage 1b: Uploading complete JSON mapping to storage...");
+      const jsonBlob = new Blob([JSON.stringify(fullMappingForStorage)], { type: 'application/json' });
+      const jsonUrl = await uploadBlobToSupabaseStorage(jsonBlob, `${uniqueId}_config.json`, 'data-cache');
+      
+      if (jsonUrl) {
+        (metadata as any).dataUrl = jsonUrl;
+        console.log(">>> [DATABASE] Stage 1b Success: Data config stored at", jsonUrl);
+      } else {
+        throw new Error("فشل في الحصول على رابط تخزين البيانات.");
       }
     } catch (err: any) {
       console.error(">>> [DATABASE ERROR] Stage 1 Failed (Storage):", err);
@@ -290,6 +303,7 @@ export async function uploadFileToServer(file: File, metadata: Partial<FileMappi
     }
   }
 
+  // 3. Prepare MINIMAL mapping for Database (Guaranteed to be small and fast)
   const completeMapping: FileMapping = {
     id: uniqueId,
     filename: file.name,
@@ -299,10 +313,10 @@ export async function uploadFileToServer(file: File, metadata: Partial<FileMappi
     latColumn: metadata.latColumn,
     lngColumn: metadata.lngColumn,
     nameColumn: metadata.nameColumn,
-    headers: metadata.headers || (localParsedData && localParsedData.length > 0 ? Object.keys(localParsedData[0]) : undefined),
-    displayColumns: metadata.displayColumns,
-    filterMappings: metadata.filterMappings || {},
-    data: localParsedData, // Keep in memory for immediate UI update
+    headers: [], // Keep empty in DB
+    displayColumns: [], // Keep empty in DB
+    filterMappings: {}, // Keep empty in DB
+    data: localParsedData, // Keep in memory for local app state
     fileUrl
   };
 
@@ -310,11 +324,11 @@ export async function uploadFileToServer(file: File, metadata: Partial<FileMappi
     (completeMapping as any).dataUrl = (metadata as any).dataUrl;
   }
 
-  // 3. Stage 2: Register in Supabase Database (Single row INSERT)
+  // 4. Stage 2: Register in Supabase Database (TINY row INSERT)
   try {
-    console.log(">>> [DATABASE] Stage 2: Registering metadata and data array in cloud database...");
+    console.log(">>> [DATABASE] Stage 2: Registering minimal metadata in cloud database...");
     await insertNewFile(completeMapping);
-    console.log(">>> [DATABASE SUCCESS] Multi-stage upload completed successfully in a single transaction.");
+    console.log(">>> [DATABASE SUCCESS] Multi-stage upload completed successfully.");
     return completeMapping;
   } catch (err: any) {
     console.error(">>> [DATABASE ERROR] Stage 2 Failed (Database):", err);
@@ -323,24 +337,26 @@ export async function uploadFileToServer(file: File, metadata: Partial<FileMappi
 }
 
 /**
- * Ensures a file has its data loaded (either from memory or from remote storage)
+ * Ensures a file has its data and metadata loaded from remote storage if necessary
  */
 export async function loadFileData(file: FileMapping): Promise<any[]> {
-  if (file.data && file.data.length > 0) return file.data;
-  
   const dataUrl = (file as any).dataUrl;
-  if (!dataUrl) return [];
+  if (!dataUrl) return file.data || [];
 
   try {
-    console.log(`>>> [DATABASE] Fetching remote data cache for: ${file.filename}`);
+    console.log(`>>> [DATABASE] Fetching remote full config for: ${file.filename}`);
     const response = await fetch(dataUrl);
-    if (!response.ok) throw new Error("Failed to fetch data cache");
-    const data = await response.json();
-    file.data = data; // Cache in memory
-    return data;
+    if (!response.ok) throw new Error("Failed to fetch data config");
+    const fullConfig = await response.json();
+    
+    // Merge the full config into the file object
+    // This restores headers, filterMappings, and the data array itself
+    Object.assign(file, fullConfig);
+    
+    return file.data || [];
   } catch (err) {
     console.error(`>>> [DATABASE ERROR] Failed to fetch data cache for ${file.filename}:`, err);
-    return [];
+    return file.data || [];
   }
 }
 

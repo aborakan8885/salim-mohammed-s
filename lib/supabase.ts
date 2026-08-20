@@ -221,14 +221,15 @@ export async function insertFileToSupabase(file: FileMapping): Promise<boolean> 
       file_url: (file as any).fileUrl || null
     };
 
-    console.log(">>> [SUPABASE] Attempting to INSERT file metadata into cloud database:", file.filename);
+    console.log(">>> [SUPABASE] Attempting to REGISTER minimal file metadata:", file.filename);
+    
+    // Pro-strategy: DELETE then INSERT instead of UPSERT to avoid any locking or indexing overhead on large tables
+    await supabase.from('educational_files').delete().eq('id', payload.id);
+    const { error: insertError } = await supabase.from('educational_files').insert(payload);
 
-    // Attempt to insert into the primary table
-    const { error: eduResultError } = await supabase.from('educational_files').upsert(payload, { onConflict: 'id' });
-
-    if (eduResultError) {
-      console.error(">>> [SUPABASE ERROR] Failed to save to educational_files:", eduResultError);
-      throw new Error(`فشل تسجيل الملف في السحابة: ${eduResultError.message}`);
+    if (insertError) {
+      console.error(">>> [SUPABASE ERROR] Failed to insert to educational_files:", insertError);
+      throw new Error(`فشل تسجيل الملف في السحابة: ${insertError.message}`);
     }
 
     console.log(">>> [SUPABASE SUCCESS] File metadata recorded in cloud database.");
