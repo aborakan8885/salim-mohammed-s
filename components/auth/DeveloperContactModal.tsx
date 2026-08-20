@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, MessageSquare, Phone, MessageCircle, Send, User, Smartphone, Code2, Sparkles, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { sanitizeString } from '../../lib/security';
+import { sendFeedback } from '../../lib/db';
 
 interface DeveloperContactModalProps {
   isOpen: boolean;
@@ -32,17 +33,11 @@ export const DeveloperContactModal: React.FC<DeveloperContactModalProps> = ({ is
         throw new Error('Message is empty after sanitization');
       }
 
-      const response = await fetch('/api/feedback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: sanitizedName,
-          phone: sanitizedPhone,
-          message: sanitizedMessage
-        })
+      await sendFeedback({
+        name: sanitizedName,
+        phone: sanitizedPhone,
+        message: sanitizedMessage
       });
-
-      if (!response.ok) throw new Error('Failed to send feedback');
       
       setStatus('success');
       setTimeout(() => {

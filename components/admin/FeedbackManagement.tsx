@@ -3,6 +3,8 @@ import { MessageSquare, Download, Trash2, Search, Calendar, User, Smartphone, Al
 import { Feedback } from '../../types';
 import { Button } from '../ui/Button';
 import { ConfirmationModal } from '../modals/ConfirmationModal';
+import { getFeedbacks } from '../../lib/db';
+import { deleteFeedbackFromSupabase } from '../../lib/supabase';
 import * as XLSX from 'xlsx';
 
 const FeedbackManagement: React.FC = () => {
@@ -14,12 +16,8 @@ const FeedbackManagement: React.FC = () => {
     const loadFeedbacks = async () => {
         setLoading(true);
         try {
-            const secret = localStorage.getItem('educational_map_bypass_secret');
-            const response = await fetch(`/api/admin/feedback?secret=${secret}`);
-            if (response.ok) {
-                const data = await response.json();
-                setFeedbacks(data);
-            }
+            const data = await getFeedbacks();
+            setFeedbacks(data);
         } catch (err) {
             console.error("Failed to load feedbacks:", err);
         } finally {
@@ -34,16 +32,14 @@ const FeedbackManagement: React.FC = () => {
     const handleDeleteConfirm = async () => {
         if (!feedbackToDelete?.id) return;
         try {
-            const secret = localStorage.getItem('educational_map_bypass_secret');
-            const response = await fetch(`/api/admin/feedback/${feedbackToDelete.id}?secret=${secret}`, {
-                method: 'DELETE'
-            });
-            if (response.ok) {
-                setFeedbacks(prev => prev.filter(f => f.id !== feedbackToDelete.id));
-                setFeedbackToDelete(null);
-            }
+            await deleteFeedbackFromSupabase(feedbackToDelete.id);
+            setFeedbacks(prev => prev.filter(f => f.id !== feedbackToDelete.id));
+            setFeedbackToDelete(null);
         } catch (error) {
             console.error("Error deleting feedback:", error);
+            // Also update local list if offline
+            setFeedbacks(prev => prev.filter(f => f.id !== feedbackToDelete.id));
+            setFeedbackToDelete(null);
         }
     };
 

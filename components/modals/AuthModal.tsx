@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, LogIn, UserCheck, ShieldCheck, Search, CheckCircle2, AlertTriangle, KeyRound, Building, User as UserIcon, Loader2 } from 'lucide-react';
+import { X, LogIn, UserCheck, ShieldCheck, Search, CheckCircle2, AlertTriangle, KeyRound, Building, User as UserIcon, Loader2, Lock } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { Alert, AlertDescription } from '../ui/Alert';

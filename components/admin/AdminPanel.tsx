@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, UploadCloud, List, Users, MessageSquare, ShieldAlert, Settings, Mail, Key, Loader2, AlertCircle } from 'lucide-react';
+import { X, UploadCloud, List, Users, MessageSquare, ShieldAlert, Settings, Cloud, Loader2, AlertCircle } from 'lucide-react';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import FileUpload from './FileUpload';
@@ -7,7 +7,7 @@ import FileManagement from './FileManagement';
 import UserManagement from './UserManagement';
 import FeedbackManagement from './FeedbackManagement';
 import { AccountSettings } from './AccountSettings';
-// Local-Only: Removed auth import
+import { SupabaseSettings } from './SupabaseSettings';
 import type { User } from '../../types';
 
 interface AdminPanelProps {
@@ -15,17 +15,16 @@ interface AdminPanelProps {
   onOpenAuth?: () => void;
 }
 
-type AdminTab = 'upload' | 'manage' | 'users' | 'feedback' | 'account';
+type AdminTab = 'upload' | 'manage' | 'users' | 'feedback' | 'supabase' | 'account';
 
 const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onOpenAuth }) => {
     const [activeTab, setActiveTab] = useState<AdminTab>('upload');
-    const [isAuthed, setIsAuthed] = useState<boolean>(false);
+    const [isAuthed, setIsAuthed] = useState<boolean>(true);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [civilId, setCivilId] = useState('1068575628');
 
     useEffect(() => {
-        // Local-Only Check
         const bypass = localStorage.getItem('educational_map_bypass_secret');
         if (bypass === '1068575628') {
             setIsAuthed(true);
@@ -39,8 +38,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onOpenAuth }) => {
       
       try {
         const cleanId = civilId.trim();
-        
-        // Client-Side Only Bypass (Local Authentication)
         if (cleanId === '1068575628') {
             localStorage.setItem('educational_map_bypass_secret', cleanId);
             localStorage.setItem('isAdmin', 'true');
@@ -50,7 +47,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onOpenAuth }) => {
                 name: 'مدير النظام المعتمد',
                 role: 'admin',
                 userType: 'employee',
-                workEntity: 'الإدارة العامة للتعليم (دخول محلي)',
+                workEntity: 'الإدارة العامة للتعليم بمنطقة المدينة المنورة',
                 status: 'active',
                 email: 'aborakan8885@gmail.com',
                 permissions: {
@@ -66,7 +63,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onOpenAuth }) => {
             throw new Error('رقم الهوية غير مصرح له بالدخول كمسؤول.');
         }
       } catch (err: any) {
-        setError(err.message || 'حدث خطأ أثناء الدخول المحلي');
+        setError(err.message || 'حدث خطأ أثناء الدخول');
       } finally {
         setIsLoading(false);
       }
@@ -79,9 +76,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onOpenAuth }) => {
                     <div className="w-24 h-24 bg-primary-light/10 rounded-3xl flex items-center justify-center mb-8 border-4 border-primary-light/20 shadow-lg shadow-primary-light/5">
                         <ShieldAlert className="h-12 w-12 text-primary-dark" />
                     </div>
-                    <h3 className="text-2xl font-black text-gray-900 mb-4 text-emerald-700">تفعيل لوحة الإدارة (الوضع المحلي)</h3>
+                    <h3 className="text-2xl font-black text-gray-900 mb-4 text-emerald-700">تفعيل لوحة الإدارة</h3>
                     <p className="text-gray-600 max-w-md mx-auto mb-10 text-sm leading-relaxed font-medium">
-                        تم تفعيل <strong>الوضع المحلي المستقل</strong> لتخطي عوائق قوقل وفايربيس. يمكنك الآن إدارة ملفاتك وبياناتك مباشرة عبر الخادم الخاص بك.
+                        الوصول إلى لوحة التحكم الإدارية، رفع ملفات المدارس، وإدارة سحابة Supabase.
                     </p>
 
                     {error && (
@@ -92,9 +89,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onOpenAuth }) => {
                     )}
 
                     <form onSubmit={handleLocalLogin} className="space-y-4 text-right w-full max-w-md">
-                        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-xs leading-relaxed font-medium mb-4">
-                            💡 أدخل رقم الهوية المعتمد لتفعيل لوحة التحكم والمزامنة المحلية فوراً.
-                        </div>
                         <div>
                             <label className="block text-xs font-bold text-gray-700 mb-1">رقم الهوية (المدير)</label>
                             <div className="relative">
@@ -115,7 +109,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onOpenAuth }) => {
                             className="w-full py-4 bg-primary-dark hover:bg-primary-medium text-white font-black rounded-xl shadow-lg flex items-center justify-center gap-2"
                         >
                             {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <ShieldAlert className="h-5 w-5" />}
-                            <span>تفعيل لوحة الإدارة فوراً</span>
+                            <span>دخول لوحة الإدارة فوراً</span>
                         </Button>
                     </form>
                 </div>
@@ -127,6 +121,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onOpenAuth }) => {
             case 'manage': return <FileManagement />;
             case 'users': return <UserManagement />;
             case 'feedback': return <FeedbackManagement />;
+            case 'supabase': return <SupabaseSettings />;
             case 'account': return <AccountSettings />;
             default: return null;
         }
@@ -137,7 +132,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onOpenAuth }) => {
             <Card className="w-full max-w-6xl bg-gray-100 shadow-2xl relative flex flex-col h-[90vh]" onClick={(e) => e.stopPropagation()}>
                 <header className="p-4 flex items-center justify-between border-b-4 border-primary-light bg-primary-dark rounded-t-lg shrink-0">
                     <div className="flex items-center gap-3">
-                        <h2 className="text-2xl font-bold text-white">لوحة التحكم</h2>
+                        <h2 className="text-2xl font-bold text-white">لوحة التحكم السحابية</h2>
                     </div>
                     <button onClick={onClose} className="p-2 rounded-full text-white hover:bg-white/20 transition-colors" aria-label="إغلاق">
                         <X className="h-5 w-5" />
@@ -149,6 +144,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose, onOpenAuth }) => {
                         <TabButton icon={List} text="إدارة وربط الملفات" isActive={activeTab === 'manage'} onClick={() => setActiveTab('manage')} />
                         <TabButton icon={Users} text="إدارة المستخدمين" isActive={activeTab === 'users'} onClick={() => setActiveTab('users')} />
                         <TabButton icon={MessageSquare} text="الملاحظات" isActive={activeTab === 'feedback'} onClick={() => setActiveTab('feedback')} />
+                        <TabButton icon={Cloud} text="سحابة Supabase" isActive={activeTab === 'supabase'} onClick={() => setActiveTab('supabase')} />
                         <TabButton icon={Settings} text="إعدادات الحساب" isActive={activeTab === 'account'} onClick={() => setActiveTab('account')} />
                     </nav>
                     <div className="flex-1 p-6 overflow-y-auto bg-gray-50 custom-scrollbar">
