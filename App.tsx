@@ -1802,14 +1802,18 @@ function AppContent() {
                   <span className="text-xs font-black">عرض شريط الأدوات</span>
                 </button>
               )}
-              <div className={`absolute top-0 left-0 z-[1000] p-3 w-full max-w-md pointer-events-none transition-all duration-300 ease-in-out ${isSidebarOpen ? 'right-52 sm:right-56' : 'right-0'}`}>
-                   <div className="flex items-center gap-2 pointer-events-auto">
-                      {!isSidebarOpen && <button onClick={() => setIsSidebarOpen(true)} className="bg-white p-2.5 rounded-md shadow-lg hover:bg-gray-100 transition-colors shrink-0"><Menu className="h-5 w-5 text-gray-700" /></button>}
-                     <div className="relative flex-grow">
-                         <input type="text" placeholder="ابحث عن اسم المدرسة..." value={searchQuery} onKeyDown={handleSearchSubmit} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pr-10 pl-4 py-2.5 border-2 border-slate-300 rounded-lg shadow-xl focus:outline-none focus:border-indigo-600 bg-white/95 backdrop-blur-sm text-xs font-black text-slate-900 placeholder:text-slate-500" />
-                         <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-700 font-bold" />
-                     </div>
-                  </div>
+              <div className="absolute top-3 right-4 z-[1000] w-72 sm:w-96 pointer-events-auto">
+                <div className="relative w-full">
+                  <input 
+                    type="text" 
+                    placeholder="ابحث عن اسم المدرسة..." 
+                    value={searchQuery} 
+                    onKeyDown={handleSearchSubmit} 
+                    onChange={(e) => setSearchQuery(e.target.value)} 
+                    className="w-full pr-10 pl-4 py-2 border border-slate-300 rounded-xl shadow-md focus:outline-none focus:ring-2 focus:ring-primary-light bg-white/95 backdrop-blur-sm text-xs font-bold text-slate-900 placeholder:text-slate-500" 
+                  />
+                  <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                </div>
               </div>
             <MapCanvas 
               mapType={mapType} 
