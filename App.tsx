@@ -1759,7 +1759,7 @@ function AppContent() {
   }
 
   return (
-    <div className="h-screen w-full max-w-full overflow-x-hidden flex flex-col bg-background font-sans print:h-auto print:w-auto" dir="rtl">
+    <div className="h-screen w-screen flex flex-col bg-background font-sans print:h-auto print:w-auto" dir="rtl">
       {/* إخفاء عناصر الـ UI العادية أثناء الطباعة باستخدام print:hidden من تايلوند */}
       <div className="print:hidden h-full w-full flex flex-col">
         <Header user={currentUser} onLoginClick={() => setAuthModalOpen(true)} onLogoutClick={handleLogout} onAdminPanelClick={() => setIsAdminPanelOpen(true)} />

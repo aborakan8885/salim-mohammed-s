@@ -8,37 +8,6 @@
 @import './design-tokens.css';
 
 /* ==============================================================================
- * إعادة التعيين الصارمة للتحكم في الأبعاد والانكماش (Hard Reset for Full Mobile Responsiveness)
- * يضمن انكماش الصفحة بالكامل ومنع أي تسريب أفقي أو تشوه على الجوال والتابلت
- * ============================================================================== */
-*, *::before, *::after {
-  max-width: 100% !important;
-  box-sizing: border-box !important;
-}
-
-html, body, #root {
-  width: 100% !important;
-  max-width: 100% !important;
-  overflow-x: hidden !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  -webkit-text-size-adjust: 100%;
-}
-
-/* استثناء عناصر التمرير المعزولة والجداول الداخلية لتسمح بالتمرير الأفقي دون كسر الصفحة */
-.ds-table-container,
-.overflow-x-auto {
-  max-width: 100% !important;
-  overflow-x: auto !important;
-  -webkit-overflow-scrolling: touch;
-}
-
-.ds-table-container table,
-.overflow-x-auto table {
-  max-width: none !important;
-}
-
-/* ==============================================================================
  * Utility Classes for Responsive Grid, Tables & Components
  * ============================================================================== */
 
