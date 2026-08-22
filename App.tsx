@@ -1759,7 +1759,7 @@ function AppContent() {
   }
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-background font-sans print:h-auto print:w-auto" dir="rtl">
+    <div className="h-screen w-full max-w-full overflow-x-hidden flex flex-col bg-background font-sans print:h-auto print:w-auto" dir="rtl">
       {/* إخفاء عناصر الـ UI العادية أثناء الطباعة باستخدام print:hidden من تايلوند */}
       <div className="print:hidden h-full w-full flex flex-col">
         <Header user={currentUser} onLoginClick={() => setAuthModalOpen(true)} onLogoutClick={handleLogout} onAdminPanelClick={() => setIsAdminPanelOpen(true)} />
@@ -1928,57 +1928,59 @@ function AppContent() {
           {/* جدول التفاصيل والمسافات */}
           <div>
             <h2 className="text-lg font-bold text-gray-800 mb-3 border-r-4 border-gray-700 pr-3">قائمة {baseLabels.plural} المحيطة والمسافات الفاصلة (مرتبة بالأقرب جغرافياً)</h2>
-            <table className="w-full text-right border-collapse text-xs">
-              <thead>
-                <tr className="bg-indigo-950 text-white font-bold border border-indigo-950">
-                  <th className="p-3 border-l border-indigo-800">#</th>
-                  <th className="p-3 border-l border-indigo-800">اسم {baseLabels.singular}</th>
-                  <th className="p-3 border-l border-indigo-800">الحي</th>
-                  
-                  {(baseGroup === 'school' || baseGroup === 'program') && (
-                    <>
-                      <th className="p-3 border-l border-indigo-800">المرحلة</th>
-                      <th className="p-3 border-l border-indigo-800">الجنس</th>
-                    </>
-                  )}
-                  
-                  <th className="p-3">المسافة المستقيمة</th>
-                </tr>
-              </thead>
-              <tbody>
-                {surroundingSchools
-                  .map(s => ({ school: s, distance: getDistanceMeters(surroundingBaseSchool.lat, surroundingBaseSchool.lng, s.lat, s.lng) }))
-                  .sort((a, b) => a.distance - b.distance)
-                  .map((item, idx) => {
-                    const s = item.school;
-                    const formattedDist = item.distance < 1000 ? `${Math.round(item.distance)} متر` : `${(item.distance / 1000).toFixed(2)} كم`;
-                    return (
-                      <tr key={s.id} className={`border border-gray-200 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
-                        <td className="p-3 border-l border-gray-200 font-bold">{idx + 1}</td>
-                        <td className="p-3 border-l border-gray-200 font-bold text-gray-900">{s.name}</td>
-                        <td className="p-3 border-l border-gray-200">{s.spatialDistrict || 'غير محدد'}</td>
-                        
-                        {(baseGroup === 'school' || baseGroup === 'program') && (
-                          <>
-                            <td className="p-3 border-l border-gray-200">{getSchoolLevel(s, fileMappings) || 'غير محدد'}</td>
-                            <td className="p-3 border-l border-gray-200">{getSchoolGender(s, fileMappings) || 'غير محدد'}</td>
-                          </>
-                        )}
-                        
-                        <td className="p-3 font-extrabold text-indigo-700 text-sm">{formattedDist}</td>
-                      </tr>
-                    );
-                  })
-                }
-                {surroundingSchools.length === 0 && (
-                  <tr>
-                    <td colSpan={(baseGroup === 'school' || baseGroup === 'program') ? 6 : 4} className="p-10 text-center text-gray-400 italic font-medium bg-white border border-gray-200">
-                      لم يتم العثور على أي نتائج مطابقة للمعايير المحددة ضمن هذا النطاق الدائري.
-                    </td>
+            <div className="ds-table-container">
+              <table className="w-full text-right border-collapse text-xs">
+                <thead>
+                  <tr className="bg-indigo-950 text-white font-bold border border-indigo-950">
+                    <th className="p-3 border-l border-indigo-800">#</th>
+                    <th className="p-3 border-l border-indigo-800">اسم {baseLabels.singular}</th>
+                    <th className="p-3 border-l border-indigo-800">الحي</th>
+                    
+                    {(baseGroup === 'school' || baseGroup === 'program') && (
+                      <>
+                        <th className="p-3 border-l border-indigo-800">المرحلة</th>
+                        <th className="p-3 border-l border-indigo-800">الجنس</th>
+                      </>
+                    )}
+                    
+                    <th className="p-3">المسافة المستقيمة</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {surroundingSchools
+                    .map(s => ({ school: s, distance: getDistanceMeters(surroundingBaseSchool.lat, surroundingBaseSchool.lng, s.lat, s.lng) }))
+                    .sort((a, b) => a.distance - b.distance)
+                    .map((item, idx) => {
+                      const s = item.school;
+                      const formattedDist = item.distance < 1000 ? `${Math.round(item.distance)} متر` : `${(item.distance / 1000).toFixed(2)} كم`;
+                      return (
+                        <tr key={s.id} className={`border border-gray-200 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}>
+                          <td className="p-3 border-l border-gray-200 font-bold">{idx + 1}</td>
+                          <td className="p-3 border-l border-gray-200 font-bold text-gray-900">{s.name}</td>
+                          <td className="p-3 border-l border-gray-200">{s.spatialDistrict || 'غير محدد'}</td>
+                          
+                          {(baseGroup === 'school' || baseGroup === 'program') && (
+                            <>
+                              <td className="p-3 border-l border-gray-200">{getSchoolLevel(s, fileMappings) || 'غير محدد'}</td>
+                              <td className="p-3 border-l border-gray-200">{getSchoolGender(s, fileMappings) || 'غير محدد'}</td>
+                            </>
+                          )}
+                          
+                          <td className="p-3 font-extrabold text-indigo-700 text-sm">{formattedDist}</td>
+                        </tr>
+                      );
+                    })
+                  }
+                  {surroundingSchools.length === 0 && (
+                    <tr>
+                      <td colSpan={(baseGroup === 'school' || baseGroup === 'program') ? 6 : 4} className="p-10 text-center text-gray-400 italic font-medium bg-white border border-gray-200">
+                        لم يتم العثور على أي نتائج مطابقة للمعايير المحددة ضمن هذا النطاق الدائري.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
