@@ -160,34 +160,34 @@ const UserManagement: React.FC = () => {
     return (
         <div className="space-y-5" dir="rtl">
             {/* Page Header & Actions */}
-            <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
                 <div>
-                    <h3 className="text-lg font-bold text-primary-dark flex items-center gap-2">
+                    <h3 className="text-fluid-base sm:text-fluid-lg font-bold text-primary-dark flex items-center gap-2">
                         <UserIcon className="h-5 w-5 text-primary-medium" />
                         <span>إدارة المستخدمين ومنح الصلاحيات</span>
                     </h3>
-                    <p className="text-xs text-gray-500 mt-0.5">التحكم الكامل بالحسابات، تفعيل وتعطيل الدخول، وتحديد صلاحيات الإحداثيات والتقارير</p>
+                    <p className="text-fluid-xs text-slate-500 mt-0.5">التحكم الكامل بالحسابات، تفعيل وتعطيل الدخول، وتحديد صلاحيات الإحداثيات والتقارير</p>
                 </div>
 
-                <Button onClick={openAddModal} className="bg-primary-dark hover:bg-primary-medium text-white font-bold rounded-xl gap-2 shadow-sm">
+                <Button onClick={openAddModal} className="bg-primary-dark hover:bg-primary-medium text-white font-bold rounded-xl gap-2 shadow-xs text-fluid-xs">
                     <UserPlus className="h-4 w-4" />
                     إضافة مستخدم جديد
                 </Button>
             </div>
 
             {/* Quick Stats Bar & Search */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                <div className="bg-white p-3.5 rounded-xl border border-gray-200 flex items-center justify-between">
-                    <span className="text-xs font-bold text-gray-500">إجمالي الحسابات</span>
-                    <span className="text-lg font-black text-primary-dark">{users.length}</span>
+            <div className="ds-grid-auto-fit">
+                <div className="bg-white p-3.5 rounded-xl border border-slate-200 flex items-center justify-between shadow-xs">
+                    <span className="text-fluid-2xs font-bold text-slate-500">إجمالي الحسابات</span>
+                    <span className="text-fluid-lg font-black text-primary-dark">{users.length}</span>
                 </div>
-                <div className="bg-emerald-50/80 p-3.5 rounded-xl border border-emerald-200 flex items-center justify-between">
-                    <span className="text-xs font-bold text-emerald-800">مسموح لهم بالدخول (نشط)</span>
-                    <span className="text-lg font-black text-emerald-700">{activeCount}</span>
+                <div className="bg-emerald-50/80 p-3.5 rounded-xl border border-emerald-200 flex items-center justify-between shadow-xs">
+                    <span className="text-fluid-2xs font-bold text-emerald-800">مسموح لهم بالدخول (نشط)</span>
+                    <span className="text-fluid-lg font-black text-emerald-700">{activeCount}</span>
                 </div>
-                <div className="bg-red-50/80 p-3.5 rounded-xl border border-red-200 flex items-center justify-between">
-                    <span className="text-xs font-bold text-red-800">معطلين من الدخول</span>
-                    <span className="text-lg font-black text-red-700">{disabledCount}</span>
+                <div className="bg-red-50/80 p-3.5 rounded-xl border border-red-200 flex items-center justify-between shadow-xs">
+                    <span className="text-fluid-2xs font-bold text-red-800">معطلين من الدخول</span>
+                    <span className="text-fluid-lg font-black text-red-700">{disabledCount}</span>
                 </div>
                 <div className="relative">
                     <input
@@ -195,59 +195,58 @@ const UserManagement: React.FC = () => {
                         value={searchQuery}
                         onChange={e => setSearchQuery(e.target.value)}
                         placeholder="بحث باسم المستخدم أو السجل المدني..."
-                        className="w-full pl-3 pr-9 py-3 bg-white border border-gray-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-primary-light focus:outline-none"
+                        className="ds-input pr-9"
                     />
-                    <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 </div>
             </div>
 
             {/* Users Table */}
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="ds-table-container">
                 {filteredUsers.length > 0 ? (
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-xs text-right">
-                            <thead className="bg-gray-100/80 border-b border-gray-200 text-gray-700 uppercase font-bold">
-                                <tr>
-                                    <th className="px-4 py-3">المستخدم / السجل المدني</th>
-                                    <th className="px-4 py-3">جهة العمل والمسمى الوظيفي</th>
-                                    <th className="px-4 py-3 text-center">نوع الحساب</th>
-                                    <th className="px-4 py-3 text-center">حالة الدخول</th>
-                                    <th className="px-4 py-3 text-center">صلاحية الإحداثيات</th>
-                                    <th className="px-4 py-3 text-center">الإجراءات والتحكم</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100 bg-white">
-                                {filteredUsers.map(u => {
-                                    const isDisabled = u.status === 'disabled';
-                                    const canCoords = u.permissions?.canViewCoordinates !== false;
-                                    return (
-                                        <tr key={u.id} className={isDisabled ? 'bg-red-50/20' : 'hover:bg-gray-50/80'}>
-                                            <td className="px-4 py-3 font-semibold text-gray-900">
-                                                <div className="flex items-center gap-2">
-                                                    <div className={`p-1.5 rounded-lg ${u.role === 'admin' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>
-                                                        <UserIcon className="h-4 w-4" />
-                                                    </div>
-                                                    <div>
-                                                        <div className="font-bold text-gray-900">{u.name}</div>
-                                                        <div className="text-[10px] text-gray-500 font-mono">سجل: {u.civilId || 'غير مدخل'}</div>
-                                                    </div>
+                    <table className="w-full text-fluid-xs text-right whitespace-nowrap">
+                        <thead className="bg-slate-100/90 border-b border-slate-200 text-slate-700 uppercase font-bold">
+                            <tr>
+                                <th className="px-4 py-3">المستخدم / السجل المدني</th>
+                                <th className="px-4 py-3">جهة العمل والمسمى الوظيفي</th>
+                                <th className="px-4 py-3 text-center">نوع الحساب</th>
+                                <th className="px-4 py-3 text-center">حالة الدخول</th>
+                                <th className="px-4 py-3 text-center">صلاحية الإحداثيات</th>
+                                <th className="px-4 py-3 text-center">الإجراءات والتحكم</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100 bg-white">
+                            {filteredUsers.map(u => {
+                                const isDisabled = u.status === 'disabled';
+                                const canCoords = u.permissions?.canViewCoordinates !== false;
+                                return (
+                                    <tr key={u.id} className={isDisabled ? 'bg-red-50/30' : 'hover:bg-slate-50/70'}>
+                                        <td className="px-4 py-3 font-semibold text-slate-900">
+                                            <div className="flex items-center gap-2">
+                                                <div className={`p-1.5 rounded-lg ${u.role === 'admin' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'}`}>
+                                                    <UserIcon className="h-4 w-4" />
                                                 </div>
-                                            </td>
-                                            <td className="px-4 py-3 text-gray-700">
-                                                <div className="font-semibold text-gray-800">{u.workEntity || 'غير محدد'}</div>
-                                                <div className="text-[10px] text-gray-400">{u.jobTitle || 'موظف'}</div>
-                                            </td>
-                                            <td className="px-4 py-3 text-center">
-                                                {u.role === 'admin' ? (
-                                                    <span className="px-2.5 py-1 text-[10px] font-extrabold text-blue-800 bg-blue-100 rounded-full border border-blue-200">
-                                                        مسؤول نظام
-                                                    </span>
-                                                ) : (
-                                                    <span className="px-2.5 py-1 text-[10px] font-bold text-emerald-800 bg-emerald-100 rounded-full border border-emerald-200">
-                                                        منسوبي الإدارة
-                                                    </span>
-                                                )}
-                                            </td>
+                                                <div>
+                                                    <div className="font-bold text-slate-900">{u.name}</div>
+                                                    <div className="text-[10px] text-slate-500 font-mono">سجل: {u.civilId || 'غير مدخل'}</div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-4 py-3 text-slate-700">
+                                            <div className="font-semibold text-slate-800">{u.workEntity || 'غير محدد'}</div>
+                                            <div className="text-[10px] text-slate-400">{u.jobTitle || 'موظف'}</div>
+                                        </td>
+                                        <td className="px-4 py-3 text-center">
+                                            {u.role === 'admin' ? (
+                                                <span className="px-2.5 py-1 text-[10px] font-extrabold text-blue-800 bg-blue-100 rounded-full border border-blue-200">
+                                                    مسؤول نظام
+                                                </span>
+                                            ) : (
+                                                <span className="px-2.5 py-1 text-[10px] font-bold text-emerald-800 bg-emerald-100 rounded-full border border-emerald-200">
+                                                    منسوبي الإدارة
+                                                </span>
+                                            )}
+                                        </td>
 
                                             {/* Access Status (Active vs Disabled) */}
                                             <td className="px-4 py-3 text-center">
@@ -323,12 +322,11 @@ const UserManagement: React.FC = () => {
                                 })}
                             </tbody>
                         </table>
-                    </div>
-                ) : (
-                    <div className="p-8 text-center text-gray-500">
-                        لا يوجد مستخدمون مطابقون لبحثك.
-                    </div>
-                )}
+                    ) : (
+                        <div className="p-8 text-center text-slate-500 font-bold text-fluid-sm">
+                            لا يوجد مستخدمون مطابقون لبحثك.
+                        </div>
+                    )}
             </div>
 
             {/* Add / Edit User Modal */}

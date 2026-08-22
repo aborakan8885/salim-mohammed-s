@@ -498,20 +498,20 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({
   ];
 
   return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center backdrop-blur-sm" onClick={() => onClose()} dir="rtl">
-      <Card className="w-full max-w-6xl bg-gray-50 shadow-2xl relative flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
-        <header className="p-4 flex items-center justify-between border-b-4 border-primary-light bg-primary-dark rounded-t-lg">
-          <div className="flex items-center gap-3">
-            <FileText className="h-7 w-7 text-primary-light" />
-            <h2 className="text-2xl font-bold text-white">لوحة التقارير والإحصائيات</h2>
+    <div className="fixed inset-0 bg-slate-900/65 z-50 flex items-center justify-center backdrop-blur-sm p-2 sm:p-4" onClick={() => onClose()} dir="rtl">
+      <Card className="w-full max-w-6xl bg-background shadow-2xl relative flex flex-col max-h-[92vh] rounded-2xl border border-slate-200 overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <header className="p-3 sm:p-4 flex items-center justify-between border-b-4 border-primary-light bg-primary-dark text-white">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <FileText className="h-6 w-6 sm:h-7 sm:w-7 text-primary-light" />
+            <h2 className="text-fluid-base sm:text-fluid-lg md:text-fluid-xl font-bold text-white">لوحة التقارير والإحصائيات</h2>
           </div>
           <button onClick={() => onClose()} className="p-2 rounded-full text-white hover:bg-white/20 transition-colors" aria-label="إغلاق">
             <X className="h-5 w-5" />
           </button>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
-            <div className="flex items-center justify-center border-b-2 border-gray-200">
+        <main className="flex-1 overflow-y-auto p-3 sm:p-6 space-y-6 custom-scrollbar">
+            <div className="flex items-center justify-center border-b-2 border-slate-200 overflow-x-auto">
                 <TabButton icon={Map} text="تقارير المنطقة" isActive={activeTab === 'region'} onClick={() => setActiveTab('region')} />
                 <TabButton icon={Building2} text="تقارير المحافظة" isActive={activeTab === 'governorate'} onClick={() => setActiveTab('governorate')} />
                 <TabButton icon={Landmark} text="تقارير الحي" isActive={activeTab === 'district'} onClick={() => setActiveTab('district')} />
@@ -521,12 +521,12 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({
                 {activeFilters.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
                     {activeFilters.map((f, i) => (
-                    <div key={i} className="bg-primary-light/10 text-primary-dark text-xs font-semibold p-2 rounded-md">
+                    <div key={i} className="bg-primary-subtle text-primary-dark text-fluid-2xs font-semibold p-2 rounded-lg border border-primary-light/30">
                         <span className="font-bold">{f.category}:</span> {f.filter}
                     </div>
                     ))}
                 </div>
-                ) : <p className="text-sm text-center text-gray-500 py-2">لم يتم تطبيق أي فلاتر.</p>}
+                ) : <p className="text-fluid-xs text-center text-slate-500 py-2">لم يتم تطبيق أي فلاتر.</p>}
             </ReportSection>
             
             <Separator />
@@ -534,24 +534,24 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({
             {activeTab === 'district' && (
               <>
               <ReportSection title="أساس التقرير">
-                  <div className="flex flex-wrap items-center gap-x-6 gap-y-4 p-3 bg-white rounded-lg border">
+                  <div className="flex flex-wrap items-center gap-x-6 gap-y-4 p-3 bg-white rounded-xl border border-slate-200 shadow-xs">
                       <div className="flex items-center gap-2">
-                        <p className="text-sm font-semibold text-gray-700">عرض أحياء:</p>
+                        <p className="text-fluid-xs font-semibold text-slate-700">عرض أحياء:</p>
                         <select
                             value={selectedGovernorateForDistrictFilter}
                             onChange={(e) => setSelectedGovernorateForDistrictFilter(e.target.value)}
-                            className="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-light bg-white"
+                            className="px-3 py-2 text-fluid-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light bg-white"
                         >
                             <option value="all">المنطقة بأكملها</option>
                             {GOVERNORATES.map(gov => <option key={gov} value={gov}>{gov}</option>)}
                         </select>
                       </div>
                       <div className="flex items-center gap-2">
-                        <p className="text-sm font-semibold text-gray-700">واختر الحي:</p>
+                        <p className="text-fluid-xs font-semibold text-slate-700">واختر الحي:</p>
                         <select
                             value={selectedDistrict}
                             onChange={(e) => setSelectedDistrict(e.target.value)}
-                            className="px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-light bg-white"
+                            className="px-3 py-2 text-fluid-xs border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-light bg-white"
                         >
                             <option value="all">الكل</option>
                             {availableDistrictsForDropdown.map(dist => <option key={dist} value={dist}>{dist}</option>)}
@@ -561,12 +561,12 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({
                       <div className="border-l h-6 mx-2 hidden md:block"></div>
                       
                       <div className="flex items-center gap-2">
-                        <p className="text-sm font-semibold text-gray-700">وتجميعها بناءً على:</p>
+                        <p className="text-fluid-xs font-semibold text-slate-700">وتجميعها بناءً على:</p>
                         <div className="flex items-center gap-2">
-                            <Button size="sm" variant={groupingMethod === 'spatial' ? 'primary' : 'secondary'} onClick={() => setGroupingMethod('spatial')} className="text-xs">
+                            <Button size="sm" variant={groupingMethod === 'spatial' ? 'primary' : 'secondary'} onClick={() => setGroupingMethod('spatial')} className="text-fluid-2xs">
                                 طبقة الحدود (KML)
                             </Button>
-                            <Button size="sm" variant={groupingMethod === 'text' ? 'primary' : 'secondary'} onClick={() => setGroupingMethod('text')} className="text-xs">
+                            <Button size="sm" variant={groupingMethod === 'text' ? 'primary' : 'secondary'} onClick={() => setGroupingMethod('text')} className="text-fluid-2xs">
                                 بيانات الملفات
                             </Button>
                         </div>
@@ -580,14 +580,14 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({
             {activeTab !== 'district' && (
                 <>
                 <ReportSection title="أساس تقرير الحي">
-                    <div className="flex items-center gap-4 p-3 bg-white rounded-lg border">
-                        <p className="text-sm font-semibold text-gray-700">تجميع إحصائيات الأحياء بناءً على:</p>
+                    <div className="flex items-center gap-4 p-3 bg-white rounded-xl border border-slate-200 shadow-xs">
+                        <p className="text-fluid-xs font-semibold text-slate-700">تجميع إحصائيات الأحياء بناءً على:</p>
                         <div className="flex items-center gap-2">
                             <Button
                                 size="sm"
                                 variant={groupingMethod === 'spatial' ? 'primary' : 'secondary'}
                                 onClick={() => setGroupingMethod('spatial')}
-                                className="text-xs"
+                                className="text-fluid-2xs"
                             >
                                 طبقة الحدود (KML)
                             </Button>
@@ -595,7 +595,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({
                                 size="sm"
                                 variant={groupingMethod === 'text' ? 'primary' : 'secondary'}
                                 onClick={() => setGroupingMethod('text')}
-                                className="text-xs"
+                                className="text-fluid-2xs"
                             >
                                 بيانات الملفات
                             </Button>
@@ -611,7 +611,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({
                 {activeTab === 'region' && (
                     <>
                     <ReportSection title="الملخص الإجمالي">
-                         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                         <div className="ds-grid-auto-fit">
                             <StatCard title="إجمالي المواقع" value={aggregatedData.region.total} />
                             <StatCard title="التعليم الخاص حسب المرحلة" value={Object.values(aggregatedData.region.schoolsByLevel).reduce((a, b) => a + b, 0)} />
                             <StatCard title="أراضٍ مملوكة" value={aggregatedData.region.ownedLandsCount} />
@@ -622,7 +622,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({
                     </ReportSection>
                     <Separator className="my-6" />
                     <ReportSection title="تفاصيل الفئات">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="ds-grid-auto-fit">
                             <DetailedStatGroup title="التعليم الخاص حسب المرحلة" data={aggregatedData.region.schoolsByLevel} />
                             <DetailedStatGroup title="التعليم الأهلي حسب المرحلة" data={aggregatedData.region.privateSchoolsByLevel} />
                             <DetailedStatGroup title="التعليم الأجنبي حسب المرحلة" data={aggregatedData.region.internationalSchoolsByLevel} />
@@ -637,7 +637,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({
                             <Button size="sm" variant="secondary" onClick={() => setSelectedGovernorates(GOVERNORATES)}>تحديد الكل</Button>
                             <Button size="sm" variant="secondary" onClick={() => setSelectedGovernorates([])}>إلغاء تحديد الكل</Button>
                         </div>
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 p-4 bg-white rounded-lg border">
+                        <div className="ds-grid-auto-fit p-4 bg-white rounded-xl border border-slate-200">
                             {GOVERNORATES.map(gov => (
                                 <CheckboxControl 
                                     key={gov}
@@ -674,9 +674,9 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({
                                 placeholder="ابحث عن حي أو محافظة..."
                                 value={districtSearch}
                                 onChange={(e) => setDistrictSearch(e.target.value)}
-                                className="w-full pr-10 pl-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-primary-light"
+                                className="ds-input pr-10"
                             />
-                            <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                            <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-400" />
                         </div>
                        <DataTable
                             headers={['الحي', 'المحافظة', ...tableHeaders]}
@@ -700,8 +700,8 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({
             <section>
                 <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
-                        <div className="w-1 h-6 bg-primary-light rounded-full"></div>
-                        <h3 className="text-lg font-bold text-primary-dark">تخصيص محتوى التقرير للتصدير</h3>
+                        <div className="w-1.5 h-6 bg-primary-light rounded-full"></div>
+                        <h3 className="text-fluid-md font-bold text-primary-dark">تخصيص محتوى التقرير للتصدير</h3>
                     </div>
                     <Button
                         size="sm"
@@ -713,7 +713,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({
                         <span>تصدير</span>
                     </Button>
                 </div>
-                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4 bg-white rounded-lg border">
+                 <div className="ds-grid-auto-fit p-4 bg-white rounded-xl border border-slate-200">
                     <CheckboxControl label="عدد التعليم الأهلي والخاص والعالمي لكل مرحلة مفصلة بالمنطقة والمحافظات" checked={exportOptions.privateSpecialGlobal} onChange={() => handleExportOptionChange('privateSpecialGlobal')} />
                     <CheckboxControl label="عدد مدارس التعليم الحكومي لكل مرحلة مفصلة بالمنطقة والمحافظات" checked={exportOptions.government} onChange={() => handleExportOptionChange('government')} />
                     <CheckboxControl label="عدد مدارس التعليم المستمر الحكومي لكل مرحلة مفصلة بالمنطقة والمحافظات" checked={exportOptions.continuingGovernment} onChange={() => handleExportOptionChange('continuingGovernment')} />
@@ -724,8 +724,8 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({
 
         </main>
 
-        <footer className="p-4 border-t bg-white rounded-b-lg flex justify-between items-center">
-            <div className="flex gap-3">
+        <footer className="p-3 sm:p-4 border-t bg-white rounded-b-xl flex flex-wrap justify-between items-center gap-2">
+            <div className="flex flex-wrap gap-2 sm:gap-3">
                  <ExportButton format="excel" icon={Sheet} onClick={handleExport} isExporting={isExporting === 'excel'} />
                  <ExportButton format="pdf" icon={FileType2} onClick={handleExport} isExporting={isExporting === 'pdf'} disabled />
                  <ExportButton format="word" icon={FileBarChart2} onClick={handleExport} isExporting={isExporting === 'word'} disabled />
@@ -756,42 +756,42 @@ const TabButton: React.FC<{ text: string, icon: React.ElementType, isActive: boo
 );
 
 const StatCard: React.FC<{ title: string, value: number }> = ({ title, value }) => (
-    <div className="p-4 bg-white border rounded-lg text-center shadow-sm">
-        <p className="text-base font-medium text-gray-600">{title}</p>
-        <p className="text-3xl font-bold text-primary-dark mt-1">{value.toLocaleString()}</p>
+    <div className="p-4 bg-white border border-slate-200 rounded-xl text-center shadow-xs hover:shadow-md transition-shadow">
+        <p className="text-fluid-xs font-medium text-slate-600">{title}</p>
+        <p className="text-fluid-xl sm:text-fluid-2xl font-bold text-primary-dark mt-1">{value.toLocaleString()}</p>
     </div>
 );
 
 const DetailedStatGroup: React.FC<{ title: string, data: Record<string, number> }> = ({ title, data }) => (
-    <div className="p-4 bg-white border rounded-lg shadow-sm">
-        <h4 className="text-base font-semibold text-gray-700 mb-3 border-b pb-2">{title}</h4>
+    <div className="p-4 bg-white border border-slate-200 rounded-xl shadow-xs">
+        <h4 className="text-fluid-sm font-semibold text-slate-800 mb-3 border-b border-slate-200 pb-2">{title}</h4>
         {Object.keys(data).length > 0 ? (
             <div className="space-y-2">
             {Object.entries(data).map(([key, value]) => (
-                <div key={key} className="flex justify-between items-center text-sm bg-gray-50 p-2 rounded">
-                    <span className="text-gray-600">{key}</span>
-                    <span className="font-bold text-primary-dark text-base">{value.toLocaleString()}</span>
+                <div key={key} className="flex justify-between items-center text-fluid-xs bg-slate-50 p-2 rounded-lg border border-slate-100">
+                    <span className="text-slate-600">{key}</span>
+                    <span className="font-bold text-primary-dark text-fluid-sm">{value.toLocaleString()}</span>
                 </div>
             ))}
             </div>
         ) : (
-            <p className="text-sm text-center text-gray-500 py-4">لا توجد بيانات</p>
+            <p className="text-fluid-xs text-center text-slate-500 py-4">لا توجد بيانات</p>
         )}
     </div>
 );
 
 const DataTable: React.FC<{ headers: string[], rows: (string|number)[][] }> = ({ headers, rows }) => (
-    <div className="border rounded-lg overflow-hidden bg-white shadow-sm">
+    <div className="ds-table-container">
         <div className="max-h-[30rem] overflow-auto custom-scrollbar">
-            <table className="w-full text-sm text-right whitespace-nowrap">
-                <thead className="bg-gray-100 sticky top-0 z-10">
-                    <tr>{headers.map(h => <th key={h} className="px-3 py-2 font-semibold text-gray-600 text-xs">{h}</th>)}</tr>
+            <table className="w-full text-fluid-xs text-right whitespace-nowrap">
+                <thead className="bg-slate-100 sticky top-0 z-10">
+                    <tr>{headers.map(h => <th key={h} className="px-3 py-2.5 font-bold text-slate-700 text-fluid-2xs border-b border-slate-300">{h}</th>)}</tr>
                 </thead>
-                <tbody className="bg-white divide-y">
+                <tbody className="bg-white divide-y divide-slate-100">
                     {rows.length > 0 ? rows.map((row, i) => (
-                        <tr key={i} className="hover:bg-gray-50">{row.map((cell, j) => <td key={j} className="px-3 py-2 text-gray-700">{typeof cell === 'number' ? cell.toLocaleString() : cell}</td>)}</tr>
+                        <tr key={i} className="hover:bg-slate-50 transition-colors">{row.map((cell, j) => <td key={j} className="px-3 py-2 text-slate-700">{typeof cell === 'number' ? cell.toLocaleString() : cell}</td>)}</tr>
                     )) : (
-                        <tr><td colSpan={headers.length} className="text-center p-6 text-gray-500">لا توجد بيانات للعرض.</td></tr>
+                        <tr><td colSpan={headers.length} className="text-center p-6 text-slate-500">لا توجد بيانات للعرض.</td></tr>
                     )}
                 </tbody>
             </table>

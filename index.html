@@ -3,25 +3,69 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
     <title>الخارطة التعليمية للقبول - المدينة المنورة</title>
     
-    <!-- Tailwind CSS (via Play CDN) -->
+    <!-- Design System Global Tokens & CSS Variables -->
+    <link rel="stylesheet" href="/src/styles/design-tokens.css" />
+    <link rel="stylesheet" href="/src/styles/global.css" />
+
+    <!-- Tailwind CSS (via Play CDN) with Sustainable Design System Theme -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
           theme: {
+            screens: {
+              'xs': '360px',
+              'sm': '576px',
+              'md': '768px',
+              'lg': '1025px',
+              'xl': '1200px',
+              '2xl': '1400px',
+            },
             extend: {
               fontFamily: {
-                sans: ['Tajawal', 'sans-serif'],
+                sans: ['Tajawal', 'system-ui', '-apple-system', 'sans-serif'],
               },
               colors: {
-                'primary-dark': '#1a546d',
-                'primary-medium': '#2d8b9d',
-                'primary-light': '#00af87',
-                'background': '#f8fafc',
-                'card': '#ffffff',
-                'border': '#e2e8f0',
+                'primary-dark': 'var(--color-primary-dark)',
+                'primary-medium': 'var(--color-primary-medium)',
+                'primary-light': 'var(--color-primary-light)',
+                'primary-subtle': 'var(--color-primary-subtle)',
+                'primary-hover': 'var(--color-primary-hover)',
+                'secondary': 'var(--color-secondary)',
+                'accent-amber': 'var(--color-accent-amber)',
+                'accent-emerald': 'var(--color-accent-emerald)',
+                'background': 'var(--color-bg-app)',
+                'surface': 'var(--color-surface-white)',
+                'card': 'var(--color-surface-white)',
+                'border': 'var(--color-border-subtle)',
+              },
+              fontSize: {
+                'fluid-2xs': 'var(--font-size-2xs)',
+                'fluid-xs': 'var(--font-size-xs)',
+                'fluid-sm': 'var(--font-size-sm)',
+                'fluid-base': 'var(--font-size-base)',
+                'fluid-md': 'var(--font-size-md)',
+                'fluid-lg': 'var(--font-size-lg)',
+                'fluid-xl': 'var(--font-size-xl)',
+                'fluid-2xl': 'var(--font-size-2xl)',
+                'fluid-3xl': 'var(--font-size-3xl)',
+              },
+              spacing: {
+                'touch': 'var(--touch-target-min)',
+                'touch-compact': 'var(--touch-target-compact)',
+              },
+              borderRadius: {
+                'xs': 'var(--radius-xs)',
+                'sm': 'var(--radius-sm)',
+                'md': 'var(--radius-md)',
+                'lg': 'var(--radius-lg)',
+                'xl': 'var(--radius-xl)',
+                '2xl': 'var(--radius-2xl)',
+              },
+              boxShadow: {
+                'glow': 'var(--shadow-glow-emerald)',
               }
             }
           }
